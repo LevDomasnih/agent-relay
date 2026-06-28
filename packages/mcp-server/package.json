@@ -7,6 +7,11 @@
   "bin": {
     "agent-coordinator-mcp": "./dist/index.js"
   },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc -b",
     "check": "tsc -b --pretty false"

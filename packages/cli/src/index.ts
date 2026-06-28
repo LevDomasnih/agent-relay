@@ -2,10 +2,12 @@
 import { Command } from "commander";
 import {
   AgentCoordinator,
+  type LockMode,
   TASK_STATUSES,
   findProjectRoot,
   type TaskStatus,
 } from "@agent-coordinator/core";
+import { readFile } from "node:fs/promises";
 
 const program = new Command();
 
@@ -41,24 +43,33 @@ program
   .requiredOption("--title <title>", "Task title")
   .requiredOption("--scope <scope>", "Task scope")
   .option("--id <id>", "Task id")
+  .option("--display-id <id>", "Human-facing task id")
   .option("--files <files>", "Comma-separated files/globs")
+  .option(
+    "--lock-mode <mode>",
+    "Lock mode: exclusive, shared-read, shared-docs, advisory",
+  )
   .option("--checks <checks>", "Comma-separated checks")
   .option("--next <next>", "Next step")
   .action(
     async (options: {
       id?: string;
+      displayId?: string;
       title: string;
       scope: string;
       files?: string;
+      lockMode?: string;
       checks?: string;
       next?: string;
     }) => {
       const coordinator = await loadCoordinator();
       const task = await coordinator.createTask({
         id: options.id,
+        displayId: options.displayId,
         title: options.title,
         scope: options.scope,
         filesGlobs: splitList(options.files),
+        lockMode: parseLockMode(options.lockMode),
         checks: splitList(options.checks),
         next: options.next,
       });
@@ -71,29 +82,47 @@ program
   .description("Claim a task and its files/globs.")
   .requiredOption("--task <id>", "Task id")
   .requiredOption("--agent <name>", "Agent name")
+  .option("--agent-instance <id>", "Stable agent instance id")
   .option("--thread <id>", "Thread id")
+  .option("--tool <tool>", "Agent tool: codex, claude, cursor, unknown")
   .option("--branch <name>", "Branch name")
   .option("--files <files>", "Comma-separated files/globs")
+  .option(
+    "--lock-mode <mode>",
+    "Lock mode: exclusive, shared-read, shared-docs, advisory",
+  )
   .option("--lease-minutes <minutes>", "Lease length in minutes")
+  .option(
+    "--takeover-reason <reason>",
+    "Required when taking over an expired lease",
+  )
   .action(
     async (options: {
       task: string;
       agent: string;
+      agentInstance?: string;
       thread?: string;
+      tool?: "codex" | "claude" | "cursor" | "unknown";
       branch?: string;
       files?: string;
+      lockMode?: string;
       leaseMinutes?: string;
+      takeoverReason?: string;
     }) => {
       const coordinator = await loadCoordinator();
       const task = await coordinator.claimTask({
         taskId: options.task,
         agent: options.agent,
+        agentInstanceId: options.agentInstance,
         threadId: options.thread,
+        tool: options.tool,
         branch: options.branch,
         filesGlobs: options.files ? splitList(options.files) : undefined,
+        lockMode: parseLockMode(options.lockMode),
         leaseMinutes: options.leaseMinutes
           ? Number(options.leaseMinutes)
           : undefined,
+        takeoverReason: options.takeoverReason,
       });
       console.log(JSON.stringify({ ok: true, task }, null, 2));
     },
@@ -105,9 +134,14 @@ program
   .requiredOption("--task <id>", "Task id")
   .requiredOption("--status <status>", `Status: ${TASK_STATUSES.join(", ")}`)
   .option("--agent <name>", "Agent name")
+  .option("--agent-instance <id>", "Stable agent instance id")
   .option("--thread <id>", "Thread id")
   .option("--scope <scope>", "Scope")
   .option("--files <files>", "Comma-separated files/globs")
+  .option(
+    "--lock-mode <mode>",
+    "Lock mode: exclusive, shared-read, shared-docs, advisory",
+  )
   .option("--checks <checks>", "Comma-separated checks")
   .option("--next <next>", "Next step")
   .option("--blocker <reason>", "Blocker reason")
@@ -116,9 +150,11 @@ program
       task: string;
       status: string;
       agent?: string;
+      agentInstance?: string;
       thread?: string;
       scope?: string;
       files?: string;
+      lockMode?: string;
       checks?: string;
       next?: string;
       blocker?: string;
@@ -128,9 +164,11 @@ program
         taskId: options.task,
         status: parseRequiredStatus(options.status),
         agent: options.agent,
+        agentInstanceId: options.agentInstance,
         threadId: options.thread,
         scope: options.scope,
         filesGlobs: options.files ? splitList(options.files) : undefined,
+        lockMode: parseLockMode(options.lockMode),
         checks: options.checks ? splitList(options.checks) : undefined,
         next: options.next,
         blocker: options.blocker,
@@ -144,12 +182,14 @@ program
   .description("Extend a task lease.")
   .requiredOption("--task <id>", "Task id")
   .option("--agent <name>", "Agent name")
+  .option("--agent-instance <id>", "Stable agent instance id")
   .option("--thread <id>", "Thread id")
   .option("--lease-minutes <minutes>", "Lease length in minutes")
   .action(
     async (options: {
       task: string;
       agent?: string;
+      agentInstance?: string;
       thread?: string;
       leaseMinutes?: string;
     }) => {
@@ -159,6 +199,7 @@ program
         options.agent,
         options.thread,
         options.leaseMinutes ? Number(options.leaseMinutes) : undefined,
+        options.agentInstance,
       );
       console.log(JSON.stringify({ ok: true, task }, null, 2));
     },
@@ -169,41 +210,72 @@ program
   .description("Release a task lease.")
   .requiredOption("--task <id>", "Task id")
   .option("--agent <name>", "Agent name")
+  .option("--agent-instance <id>", "Stable agent instance id")
   .option("--reason <reason>", "Release reason", "released")
-  .action(async (options: { task: string; agent?: string; reason: string }) => {
-    const coordinator = await loadCoordinator();
-    const task = await coordinator.releaseTask(
-      options.task,
-      options.agent,
-      options.reason,
-    );
-    console.log(JSON.stringify({ ok: true, task }, null, 2));
-  });
+  .action(
+    async (options: {
+      task: string;
+      agent?: string;
+      agentInstance?: string;
+      reason: string;
+    }) => {
+      const coordinator = await loadCoordinator();
+      const task = await coordinator.releaseTask(
+        options.task,
+        options.agent,
+        options.reason,
+        options.agentInstance,
+      );
+      console.log(JSON.stringify({ ok: true, task }, null, 2));
+    },
+  );
 
 program
   .command("mine")
   .description("List tasks by agent or thread id.")
   .option("--agent <name>", "Agent name")
+  .option("--agent-instance <id>", "Stable agent instance id")
   .option("--thread <id>", "Thread id")
-  .action(async (options: { agent?: string; thread?: string }) => {
-    const coordinator = await loadCoordinator();
-    const tasks = await coordinator.listMyTasks(options.agent, options.thread);
-    console.log(JSON.stringify({ ok: true, tasks }, null, 2));
-  });
+  .action(
+    async (options: {
+      agent?: string;
+      agentInstance?: string;
+      thread?: string;
+    }) => {
+      const coordinator = await loadCoordinator();
+      const tasks = await coordinator.listMyTasks(
+        options.agent,
+        options.thread,
+        options.agentInstance,
+      );
+      console.log(JSON.stringify({ ok: true, tasks }, null, 2));
+    },
+  );
 
 program
   .command("conflicts")
   .description("Detect active scope conflicts.")
   .requiredOption("--files <files>", "Comma-separated files/globs")
   .option("--exclude-task <id>", "Task id to exclude")
-  .action(async (options: { files: string; excludeTask?: string }) => {
-    const coordinator = await loadCoordinator();
-    const conflicts = await coordinator.detectConflicts(
-      splitList(options.files),
-      options.excludeTask,
-    );
-    console.log(JSON.stringify({ ok: true, conflicts }, null, 2));
-  });
+  .option(
+    "--lock-mode <mode>",
+    "Lock mode: exclusive, shared-read, shared-docs, advisory",
+  )
+  .action(
+    async (options: {
+      files: string;
+      excludeTask?: string;
+      lockMode?: string;
+    }) => {
+      const coordinator = await loadCoordinator();
+      const conflicts = await coordinator.detectConflicts(
+        splitList(options.files),
+        options.excludeTask,
+        parseLockMode(options.lockMode),
+      );
+      console.log(JSON.stringify({ ok: true, conflicts }, null, 2));
+    },
+  );
 
 program
   .command("message")
@@ -246,17 +318,102 @@ program
   .command("git-identity")
   .description("Set local git identity for an agent task.")
   .requiredOption("--agent <name>", "Agent name")
+  .option("--agent-instance <id>", "Stable agent instance id")
   .option("--thread <id>", "Thread id")
   .option("--task <id>", "Task id")
   .action(
-    async (options: { agent: string; thread?: string; task?: string }) => {
+    async (options: {
+      agent: string;
+      agentInstance?: string;
+      thread?: string;
+      task?: string;
+    }) => {
       const coordinator = await loadCoordinator();
       const result = await coordinator.configureGitIdentity(
         options.agent,
         options.thread,
         options.task,
+        options.agentInstance,
       );
       console.log(JSON.stringify({ ok: true, ...result }, null, 2));
+    },
+  );
+
+program
+  .command("git-identity-reset")
+  .description("Restore the git identity saved before git-identity.")
+  .action(async () => {
+    const coordinator = await loadCoordinator();
+    const result = await coordinator.resetGitIdentity();
+    console.log(JSON.stringify({ ok: true, ...result }, null, 2));
+  });
+
+program
+  .command("doctor")
+  .description("Inspect coordinator setup and common local hazards.")
+  .action(async () => {
+    const coordinator = await loadCoordinator();
+    const report = await coordinator.doctor();
+    console.log(
+      JSON.stringify(
+        { ok: report.checks.every((item) => item.ok), ...report },
+        null,
+        2,
+      ),
+    );
+  });
+
+program
+  .command("verify-worktree")
+  .description("Verify modified files are covered by the current agent claim.")
+  .option("--agent <name>", "Agent name")
+  .option("--agent-instance <id>", "Stable agent instance id")
+  .option("--thread <id>", "Thread id")
+  .action(
+    async (options: {
+      agent?: string;
+      agentInstance?: string;
+      thread?: string;
+    }) => {
+      const coordinator = await loadCoordinator();
+      const report = await coordinator.verifyWorktree({
+        agent: options.agent,
+        agentInstanceId: options.agentInstance,
+        threadId: options.thread,
+      });
+      console.log(JSON.stringify(report, null, 2));
+      if (!report.ok) process.exitCode = 1;
+    },
+  );
+
+program
+  .command("verify-commit")
+  .description("Verify staged files and optional commit message trailers.")
+  .option("--agent <name>", "Agent name")
+  .option("--agent-instance <id>", "Stable agent instance id")
+  .option("--thread <id>", "Thread id")
+  .option("--message <text>", "Commit message text")
+  .option("--message-file <path>", "Commit message file, for commit-msg hooks")
+  .action(
+    async (options: {
+      agent?: string;
+      agentInstance?: string;
+      thread?: string;
+      message?: string;
+      messageFile?: string;
+    }) => {
+      const coordinator = await loadCoordinator();
+      const message = options.messageFile
+        ? await readFile(options.messageFile, "utf8")
+        : options.message;
+      const report = await coordinator.verifyCommit({
+        agent: options.agent,
+        agentInstanceId: options.agentInstance,
+        threadId: options.thread,
+        message,
+      });
+      console.log(JSON.stringify(report, null, 2));
+      if (!report.ok) process.exitCode = 1;
     },
   );
 
@@ -286,5 +443,20 @@ function parseRequiredStatus(status: string): TaskStatus {
   if (TASK_STATUSES.includes(status as TaskStatus)) return status as TaskStatus;
   throw new Error(
     `Invalid status "${status}". Expected one of: ${TASK_STATUSES.join(", ")}`,
+  );
+}
+
+function parseLockMode(mode?: string): LockMode | undefined {
+  if (!mode) return undefined;
+  if (
+    mode === "exclusive" ||
+    mode === "shared-read" ||
+    mode === "shared-docs" ||
+    mode === "advisory"
+  ) {
+    return mode;
+  }
+  throw new Error(
+    `Invalid lock mode "${mode}". Expected one of: exclusive, shared-read, shared-docs, advisory`,
   );
 }

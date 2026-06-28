@@ -9,12 +9,14 @@
   "scripts": {
     "build": "tsc -b packages/core packages/cli packages/mcp-server",
     "check": "tsc -b --pretty false packages/core packages/cli packages/mcp-server",
+    "test": "node --test --import tsx packages/core/test/*.test.ts",
     "format": "prettier --check .",
     "format:write": "prettier --write ."
   },
   "devDependencies": {
     "@types/node": "^24.10.1",
     "prettier": "^3.6.2",
+    "tsx": "^4.20.6",
     "typescript": "^5.9.3"
   }
 }
