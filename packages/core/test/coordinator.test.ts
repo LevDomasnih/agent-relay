@@ -352,6 +352,45 @@ test("migrateState normalizes legacy state and doctor requires current schema", 
   assert.equal(after.checks.find((check) => check.name === "state")?.ok, true);
 });
 
+test("doctor reports snapshot drift and export rejects paths outside root", async () => {
+  const root = await tempGitRepo();
+  const coordinator = new AgentCoordinator(root);
+  await coordinator.init("sample");
+  const snapshotPath = path.join(root, ".agent-relay/snapshots/TASKS.md");
+
+  await writeFile(snapshotPath, "# Manual board\n");
+  const drift = await coordinator.doctor();
+
+  assert.equal(
+    drift.checks.find((check) => check.name === "snapshot")?.ok,
+    false,
+  );
+
+  await writeFile(
+    path.join(root, ".agent-relay/config.json"),
+    JSON.stringify(
+      {
+        version: 1,
+        projectName: "sample",
+        defaultLeaseMinutes: 120,
+        snapshotPath: "../TASKS.md",
+      },
+      null,
+      2,
+    ),
+  );
+
+  const unsafe = await coordinator.doctor();
+  assert.equal(
+    unsafe.checks.find((check) => check.name === "snapshot path")?.ok,
+    false,
+  );
+  await assert.rejects(
+    coordinator.exportSnapshot(),
+    /snapshotPath must stay inside project root/u,
+  );
+});
+
 test("verify-worktree reports unclaimed files and accepts claimed scopes", async () => {
   const root = await tempGitRepo();
   await writeFile(path.join(root, "owned.ts"), "owned\n");

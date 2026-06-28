@@ -1072,7 +1072,11 @@ export class AgentCoordinator {
           messageReceipts: [],
         } satisfies CoordinatorState);
     const snapshot = renderSnapshot(config, state);
-    const snapshotPath = path.join(this.paths.root, config.snapshotPath);
+    const snapshotPath = resolveInsideRoot(
+      this.paths.root,
+      config.snapshotPath,
+      "snapshotPath",
+    );
     await mkdir(path.dirname(snapshotPath), { recursive: true });
     await writeFile(snapshotPath, snapshot);
     return snapshotPath;
@@ -1236,12 +1240,37 @@ export class AgentCoordinator {
     const config = existsSync(this.paths.config)
       ? await this.storage.readConfig()
       : defaultConfig(this.paths.root);
-    const snapshotPath = path.join(this.paths.root, config.snapshotPath);
-    checks.push({
-      name: "snapshot path",
-      ok: snapshotPath.startsWith(this.paths.root),
-      message: snapshotPath,
-    });
+    let snapshotPath = path.resolve(this.paths.root, config.snapshotPath);
+    checks.push(
+      await check("snapshot path", async () => {
+        snapshotPath = resolveInsideRoot(
+          this.paths.root,
+          config.snapshotPath,
+          "snapshotPath",
+        );
+        return snapshotPath;
+      }),
+    );
+    checks.push(
+      await check("snapshot", async () => {
+        if (!existsSync(snapshotPath)) return "snapshot not generated yet";
+        const content = await readFile(snapshotPath, "utf8");
+        if (!content.includes("Generated. Do not edit.")) {
+          throw new Error("snapshot is missing generated-file marker");
+        }
+        const snapshotInfo = await stat(snapshotPath);
+        const sourceTimes = await Promise.all(
+          [this.paths.state, this.paths.events, this.paths.messages]
+            .filter((item) => existsSync(item))
+            .map(async (item) => (await stat(item)).mtimeMs),
+        );
+        const newestSource = Math.max(0, ...sourceTimes);
+        if (snapshotInfo.mtimeMs + 1000 < newestSource) {
+          throw new Error("snapshot is older than coordinator state/logs");
+        }
+        return "generated snapshot is present and fresh";
+      }),
+    );
     const identity = await readGitIdentity(this.paths.root);
     checks.push({
       name: "git identity",
@@ -1507,6 +1536,22 @@ function resolveStateDir(
     readConfiguredStateDir(defaultDir);
   if (!configured) return defaultDir;
   return path.resolve(root, configured);
+}
+
+function resolveInsideRoot(root: string, value: string, label: string): string {
+  const resolved = path.resolve(root, value);
+  if (!isPathInside(root, resolved)) {
+    throw new Error(`${label} must stay inside project root: ${value}`);
+  }
+  return resolved;
+}
+
+function isPathInside(root: string, candidate: string): boolean {
+  const relative = path.relative(path.resolve(root), path.resolve(candidate));
+  return (
+    relative === "" ||
+    (!relative.startsWith("..") && !path.isAbsolute(relative))
+  );
 }
 
 function readConfiguredStateDir(defaultDir: string): string | undefined {

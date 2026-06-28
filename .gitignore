@@ -1,5 +1,9 @@
 node_modules/
 dist/
+.agent-relay/state.json
+.agent-relay/events.jsonl
+.agent-relay/messages.jsonl
+.agent-relay/*.lock
 .agent-coordinator/state.json
 .agent-coordinator/events.jsonl
 .agent-coordinator/messages.jsonl
