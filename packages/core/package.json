@@ -1,6 +1,6 @@
 {
   "name": "@levdomasnih/agent-relay-core",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Core project-local state and coordination logic for Agent Relay.",
   "type": "module",
   "license": "MIT",
