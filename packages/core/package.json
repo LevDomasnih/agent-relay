@@ -1,6 +1,6 @@
 {
   "name": "@coordinaut/core",
-  "version": "0.1.6",
+  "version": "1.0.0",
   "description": "Core project-local state and coordination logic for Coordinaut.",
   "type": "module",
   "license": "MIT",

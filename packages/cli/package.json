@@ -1,6 +1,6 @@
 {
   "name": "@coordinaut/cli",
-  "version": "0.1.6",
+  "version": "1.0.0",
   "description": "CLI for Coordinaut.",
   "type": "module",
   "license": "MIT",
@@ -40,7 +40,7 @@
     "check": "tsc -b --pretty false"
   },
   "dependencies": {
-    "@coordinaut/core": "0.1.6",
+    "@coordinaut/core": "1.0.0",
     "commander": "^14.0.2"
   }
 }

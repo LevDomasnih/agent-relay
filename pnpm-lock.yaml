@@ -23,7 +23,7 @@ importers:
   packages/cli:
     dependencies:
       "@coordinaut/core":
-        specifier: 0.1.6
+        specifier: 1.0.0
         version: link:../core
       commander:
         specifier: ^14.0.2
@@ -38,7 +38,7 @@ importers:
   packages/mcp-server:
     dependencies:
       "@coordinaut/core":
-        specifier: 0.1.6
+        specifier: 1.0.0
         version: link:../core
       "@modelcontextprotocol/sdk":
         specifier: ^1.29.0
@@ -50,7 +50,7 @@ importers:
   packages/server:
     dependencies:
       "@coordinaut/core":
-        specifier: 0.1.6
+        specifier: 1.0.0
         version: link:../core
 
 packages:

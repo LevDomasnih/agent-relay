@@ -1,6 +1,6 @@
 {
   "name": "@coordinaut/server",
-  "version": "0.1.6",
+  "version": "1.0.0",
   "description": "Hosted sync backend for Coordinaut teams.",
   "type": "module",
   "license": "MIT",
@@ -41,6 +41,6 @@
     "smoke": "node scripts/smoke-server.mjs"
   },
   "dependencies": {
-    "@coordinaut/core": "0.1.6"
+    "@coordinaut/core": "1.0.0"
   }
 }
