@@ -225,7 +225,7 @@ git push -u origin main
 - есть автоматические unit tests, CLI smoke и MCP smoke, но нет отдельной
   матрицы интеграционных сценариев по реальным MCP clients;
 - `doctor` и `explain` реализованы;
-- npm-публикация ожидает финальный public package scope или rename.
+- npm-публикация настроена для public scope `@coordinaut`.
 
 ## Как не наступить на известные проблемы
 

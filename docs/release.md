@@ -10,8 +10,9 @@ This project is a pnpm workspace with four publishable packages:
 ## Automated Publishing
 
 Releases are prepared from Conventional Commits on `main` by GitHub Actions.
-npm publishing is enabled once the public package scope is available and npm
-Trusted Publishing or `NPM_TOKEN` is configured:
+npm publishing is enabled for the `@coordinaut` scope through GitHub Actions.
+The release workflow can use npm Trusted Publishing or the `NPM_TOKEN` GitHub
+Actions secret:
 
 1. Merge or push conventional commits to `main`.
 2. `.github/workflows/conventional-release.yml` looks at commits since the latest
@@ -22,15 +23,15 @@ Trusted Publishing or `NPM_TOKEN` is configured:
 3. If a release is needed, it bumps every package version, commits the change,
    creates the matching `v*` tag, pushes it, and dispatches
    `.github/workflows/release.yml`.
-4. `.github/workflows/release.yml` creates or updates the GitHub Release and,
-   when npm publishing is configured, publishes the packages.
+4. `.github/workflows/release.yml` creates or updates the GitHub Release and
+   publishes the packages.
 
 For every release it:
 
 1. Checks that the tag version matches all workspace package versions.
 2. Runs `pnpm run release:check`.
 3. Checks package contents with `npm pack --dry-run`.
-4. Publishes packages to npm in dependency order when npm publishing is enabled.
+4. Publishes packages to npm in dependency order.
 5. Creates or updates the GitHub Release.
 
 The workflow supports npm Trusted Publishing via GitHub OIDC. In npm, configure
@@ -55,7 +56,7 @@ Trusted Publishing is preferred because it avoids long-lived npm tokens.
 
 ## Before Releasing
 
-1. Confirm the package scope and ownership on npm.
+1. Confirm package ownership on npm.
 2. Run `pnpm install`.
 3. Run `pnpm run release:check`.
 4. Smoke-test the CLI in a clean git repository.

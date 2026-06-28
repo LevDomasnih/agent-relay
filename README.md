@@ -220,13 +220,18 @@ or point the same CLI/MCP protocol at a hosted team backend.
 
 ## Status
 
-Coordinaut is source-ready for a first public release. The CLI, core package,
-MCP server, hosted sync server, JSON/SQLite/remote storage adapters, state
-migrations, CI checks, package dry-runs, CLI smoke test, real MCP client smoke
-test, and hosted server smoke test are implemented and verified.
+Coordinaut has its first public release. The CLI, core package, MCP server,
+hosted sync server, JSON/SQLite/remote storage adapters, state migrations, CI
+checks, package dry-runs, CLI smoke test, real MCP client smoke test, hosted
+server smoke test, automated GitHub Releases, and npm publishing are implemented
+and verified.
 
-npm publishing is intentionally pending until the final public package scope is
-available or renamed.
+Published packages:
+
+- `@coordinaut/core`
+- `@coordinaut/cli`
+- `@coordinaut/mcp-server`
+- `@coordinaut/server`
 
 ## Quick Start
 
@@ -684,9 +689,9 @@ Release notes live in [docs/release.md](docs/release.md).
 Releases are automated from Conventional Commits on `main`: `feat` creates a
 minor release, `fix`/`perf` create a patch release, and `!` or
 `BREAKING CHANGE:` creates a major release. The workflow bumps versions, commits
-the release, tags it, and creates or updates the GitHub Release. npm publishing
-is enabled once the public package scope is available and `NPM_TOKEN` is
-configured. See [docs/release.md](docs/release.md) for details.
+the release, tags it, creates or updates the GitHub Release, and publishes npm
+packages from the `@coordinaut` scope. See [docs/release.md](docs/release.md)
+for details.
 
 ## First-Version Baseline
 
@@ -701,7 +706,6 @@ Implemented:
 
 ## Roadmap
 
-- First npm release after the public package scope is available or renamed.
 - Web dashboard.
 - Hosted multi-tenant deployment hardening.
 
