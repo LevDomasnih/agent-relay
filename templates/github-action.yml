@@ -17,5 +17,5 @@ jobs:
 
       - name: Verify agent commit trailers
         run: |
-          npx @levdomasnih/agent-relay-cli init --project-name "${{ github.repository }}"
-          npx @levdomasnih/agent-relay-cli verify-commit-range --range "origin/${{ github.base_ref }}..HEAD"
+          npx @agent-relay/cli init --project-name "${{ github.repository }}"
+          npx @agent-relay/cli verify-commit-range --range "origin/${{ github.base_ref }}..HEAD"

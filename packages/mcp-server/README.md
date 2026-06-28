@@ -1,4 +1,4 @@
-# @levdomasnih/agent-relay-mcp-server
+# @agent-relay/mcp-server
 
 MCP server for Agent Relay. It exposes project-local coordination tools to
 Codex, Claude, Cursor, and other Model Context Protocol clients.
@@ -6,7 +6,7 @@ Codex, Claude, Cursor, and other Model Context Protocol clients.
 ## Install
 
 ```bash
-npm install -g @levdomasnih/agent-relay-mcp-server
+npm install -g @agent-relay/mcp-server
 ```
 
 ## MCP Configuration
@@ -29,7 +29,7 @@ You can also run it without global install:
   "mcpServers": {
     "agent-relay": {
       "command": "npx",
-      "args": ["@levdomasnih/agent-relay-mcp-server"]
+      "args": ["@agent-relay/mcp-server"]
     }
   }
 }

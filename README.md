@@ -1,7 +1,7 @@
 # Agent Relay
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![npm](https://img.shields.io/badge/npm-v0.1.3-cb3837.svg)](https://www.npmjs.com/package/@levdomasnih/agent-relay-cli)
+[![npm](https://img.shields.io/badge/npm-v0.1.4-cb3837.svg)](https://www.npmjs.com/package/@agent-relay/cli)
 
 [English](README.md) · [Русский](README.ru.md) · [简体中文](README.zh-CN.md) ·
 [Deutsch](README.de.md) · [Español](README.es.md) ·
@@ -51,15 +51,15 @@ No daemon. No database server. No `/tmp` state.
 
 ## Status
 
-Agent Relay v0.1.3 is published to npm. The CLI, core package, MCP server,
+Agent Relay v0.1.4 is published to npm. The CLI, core package, MCP server,
 state migrations, CI checks, release dry-runs, and npm smoke test are
 implemented and verified.
 
 Install the CLI with `npx`:
 
 ```bash
-npx @levdomasnih/agent-relay-cli init
-npx @levdomasnih/agent-relay-cli doctor
+npx @agent-relay/cli init
+npx @agent-relay/cli doctor
 ```
 
 Or run it from source:
@@ -69,7 +69,7 @@ git clone https://github.com/LevDomasnih/agent-relay.git
 cd agent-relay
 pnpm install
 pnpm run build
-pnpm --filter @levdomasnih/agent-relay-cli agent-relay --help
+pnpm --filter @agent-relay/cli agent-relay --help
 ```
 
 ## Quick Start
@@ -458,6 +458,11 @@ node /path/to/agent-relay/packages/cli/dist/index.js doctor
 ```
 
 Release notes live in [docs/release.md](docs/release.md).
+
+Releases are automated through GitHub Actions. Push a `v*` tag after bumping the
+workspace versions, and the release workflow verifies the repo, publishes the npm
+packages, and creates or updates the GitHub Release. See
+[docs/release.md](docs/release.md) for npm Trusted Publishing setup.
 
 ## Roadmap
 

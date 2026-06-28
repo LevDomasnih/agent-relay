@@ -50,13 +50,13 @@ Daemon なし。Database server なし。`/tmp` state なし。
 
 ## Status
 
-Agent Relay v0.1.3 は npm に公開済みです。CLI、core package、MCP server、state migrations、CI checks、release dry-runs、npm smoke test は実装済みで検証済みです。
+Agent Relay v0.1.4 は npm に公開済みです。CLI、core package、MCP server、state migrations、CI checks、release dry-runs、npm smoke test は実装済みで検証済みです。
 
 `npx` で CLI を実行:
 
 ```bash
-npx @levdomasnih/agent-relay-cli init
-npx @levdomasnih/agent-relay-cli doctor
+npx @agent-relay/cli init
+npx @agent-relay/cli doctor
 ```
 
 Source から使う:
@@ -66,7 +66,7 @@ git clone https://github.com/LevDomasnih/agent-relay.git
 cd agent-relay
 pnpm install
 pnpm run build
-pnpm --filter @levdomasnih/agent-relay-cli agent-relay --help
+pnpm --filter @agent-relay/cli agent-relay --help
 ```
 
 ## Quick Start

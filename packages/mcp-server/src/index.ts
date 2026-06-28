@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { createRequire } from "node:module";
 import {
   AgentCoordinator,
   TASK_STATUSES,
@@ -10,10 +11,16 @@ import {
   type LockMode,
   type MessageKind,
   type TaskStatus,
-} from "@levdomasnih/agent-relay-core";
+} from "@agent-relay/core";
 import { z } from "zod";
 
-const server = new McpServer({ name: "agent-relay", version: "0.1.0" });
+const require = createRequire(import.meta.url);
+const packageJson = require("../package.json") as { version: string };
+
+const server = new McpServer({
+  name: "agent-relay",
+  version: packageJson.version,
+});
 
 const taskStatusSchema = z.enum(TASK_STATUSES);
 const listSchema = z.array(z.string()).optional();

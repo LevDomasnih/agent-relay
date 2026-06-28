@@ -2,11 +2,41 @@
 
 This project is a pnpm workspace with three publishable packages:
 
-- `@levdomasnih/agent-relay-core`
-- `@levdomasnih/agent-relay-cli`
-- `@levdomasnih/agent-relay-mcp-server`
+- `@agent-relay/core`
+- `@agent-relay/cli`
+- `@agent-relay/mcp-server`
 
-## Before Publishing
+## Automated Publishing
+
+Releases are published by GitHub Actions from `.github/workflows/release.yml`.
+The workflow runs when a `v*` tag is pushed, or when it is started manually with
+an existing tag.
+
+For every release it:
+
+1. Checks that the tag version matches all workspace package versions.
+2. Runs `pnpm run release:check`.
+3. Publishes packages to npm in dependency order.
+4. Creates or updates the GitHub Release.
+
+The workflow supports npm Trusted Publishing via GitHub OIDC. In npm, configure
+each package with this trusted publisher:
+
+- Repository: `LevDomasnih/agent-relay`
+- Workflow: `release.yml`
+- Environment: empty
+
+Packages:
+
+- `@agent-relay/core`
+- `@agent-relay/cli`
+- `@agent-relay/mcp-server`
+
+If Trusted Publishing is not enabled yet, add a GitHub Actions secret named
+`NPM_TOKEN` with publish access to these packages. Trusted Publishing is
+preferred because it avoids long-lived npm tokens.
+
+## Before Tagging
 
 1. Confirm the package scope and ownership on npm.
 2. Run `pnpm install`.
@@ -15,16 +45,24 @@ This project is a pnpm workspace with three publishable packages:
 5. Smoke-test the MCP server with a real MCP client.
 6. Check package contents with `pnpm run pack:dry-run`.
 7. Confirm `doctor` and `migrate` work against a legacy state fixture.
-8. Tag the release after publish.
-
-## Publish Order
-
-Publish core first, then CLI and MCP server:
+8. Bump the root and workspace package versions.
+9. Commit the version bump.
+10. Tag the release and push the tag:
 
 ```bash
-pnpm --filter @levdomasnih/agent-relay-core publish --access public
-pnpm --filter @levdomasnih/agent-relay-cli publish --access public
-pnpm --filter @levdomasnih/agent-relay-mcp-server publish --access public
+git tag -a v0.1.4 -m "v0.1.4"
+git push origin main v0.1.4
+```
+
+## Manual Publish Fallback
+
+The release workflow publishes automatically. Use the commands below only as a
+fallback. Publish core first, then CLI and MCP server:
+
+```bash
+pnpm --filter @agent-relay/core publish --access public --provenance
+pnpm --filter @agent-relay/cli publish --access public --provenance
+pnpm --filter @agent-relay/mcp-server publish --access public --provenance
 ```
 
 ## Post-Publish Smoke
@@ -33,10 +71,10 @@ pnpm --filter @levdomasnih/agent-relay-mcp-server publish --access public
 tmp="$(mktemp -d)"
 cd "$tmp"
 git init
-npx @levdomasnih/agent-relay-cli init
-npx @levdomasnih/agent-relay-cli doctor
-npx @levdomasnih/agent-relay-cli create --title "Smoke" --scope "src" --files "src/**"
-npx @levdomasnih/agent-relay-cli status
+npx @agent-relay/cli init
+npx @agent-relay/cli doctor
+npx @agent-relay/cli create --title "Smoke" --scope "src" --files "src/**"
+npx @agent-relay/cli status
 ```
 
 ## Notes

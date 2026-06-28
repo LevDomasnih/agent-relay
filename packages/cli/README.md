@@ -1,4 +1,4 @@
-# @levdomasnih/agent-relay-cli
+# @agent-relay/cli
 
 Command-line interface for Agent Relay: a project-local coordination layer
 for parallel AI coding agents.
@@ -9,13 +9,13 @@ and keep agent work visible without a hosted service.
 ## Install
 
 ```bash
-npm install -g @levdomasnih/agent-relay-cli
+npm install -g @agent-relay/cli
 ```
 
 or run it directly:
 
 ```bash
-npx @levdomasnih/agent-relay-cli init
+npx @agent-relay/cli init
 ```
 
 ## Quick Start

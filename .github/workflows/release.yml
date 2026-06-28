@@ -1,0 +1,109 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing release tag, for example v0.1.4"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  id-token: write
+
+concurrency:
+  group: release-${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Use npm with trusted publishing support
+        run: npm install -g npm@latest
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify tag and package versions
+        run: |
+          set -euo pipefail
+          case "$RELEASE_TAG" in
+            v*) ;;
+            *) echo "Release tag must start with v: $RELEASE_TAG" >&2; exit 1 ;;
+          esac
+
+          tag_version="${RELEASE_TAG#v}"
+          root_version="$(node -p "JSON.parse(require('fs').readFileSync('package.json','utf8')).version")"
+          core_version="$(node -p "JSON.parse(require('fs').readFileSync('packages/core/package.json','utf8')).version")"
+          cli_version="$(node -p "JSON.parse(require('fs').readFileSync('packages/cli/package.json','utf8')).version")"
+          mcp_version="$(node -p "JSON.parse(require('fs').readFileSync('packages/mcp-server/package.json','utf8')).version")"
+
+          if [ "$tag_version" != "$root_version" ] || [ "$tag_version" != "$core_version" ] || [ "$tag_version" != "$cli_version" ] || [ "$tag_version" != "$mcp_version" ]; then
+            echo "Version mismatch: tag=$tag_version root=$root_version core=$core_version cli=$cli_version mcp=$mcp_version" >&2
+            exit 1
+          fi
+
+      - name: Release check
+        run: pnpm run release:check
+
+      - name: Publish npm packages
+        run: |
+          set -euo pipefail
+
+          publish_if_needed() {
+            package_name="$1"
+            package_version="$(node -p "JSON.parse(require('fs').readFileSync('$2','utf8')).version")"
+
+            if npm view "${package_name}@${package_version}" version >/dev/null 2>&1; then
+              echo "${package_name}@${package_version} already exists on npm, skipping."
+              return
+            fi
+
+            pnpm --filter "$package_name" publish --access public --provenance --no-git-checks
+          }
+
+          publish_if_needed "@agent-relay/core" "packages/core/package.json"
+          publish_if_needed "@agent-relay/cli" "packages/cli/package.json"
+          publish_if_needed "@agent-relay/mcp-server" "packages/mcp-server/package.json"
+
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release edit "$RELEASE_TAG" --title "Agent Relay $RELEASE_TAG" --latest
+          else
+            gh release create "$RELEASE_TAG" \
+              --title "Agent Relay $RELEASE_TAG" \
+              --generate-notes \
+              --verify-tag \
+              --latest
+          fi

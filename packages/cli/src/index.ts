@@ -8,15 +8,18 @@ import {
   TASK_STATUSES,
   findProjectRoot,
   type TaskStatus,
-} from "@levdomasnih/agent-relay-core";
+} from "@agent-relay/core";
 import { readFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 
+const require = createRequire(import.meta.url);
+const packageJson = require("../package.json") as { version: string };
 const program = new Command();
 
 program
   .name("agent-relay")
   .description("Project-local coordination for parallel AI coding agents.")
-  .version("0.1.0");
+  .version(packageJson.version);
 
 program
   .command("init")

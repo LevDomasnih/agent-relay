@@ -48,13 +48,13 @@ State живет рядом с проектом:
 
 ## Статус
 
-Agent Relay v0.1.3 опубликован в npm. CLI, core package, MCP server, state migrations, CI checks, release dry-runs и npm smoke test реализованы и проверены.
+Agent Relay v0.1.4 опубликован в npm. CLI, core package, MCP server, state migrations, CI checks, release dry-runs и npm smoke test реализованы и проверены.
 
 Установка CLI через `npx`:
 
 ```bash
-npx @levdomasnih/agent-relay-cli init
-npx @levdomasnih/agent-relay-cli doctor
+npx @agent-relay/cli init
+npx @agent-relay/cli doctor
 ```
 
 Запуск из исходников:
@@ -64,7 +64,7 @@ git clone https://github.com/LevDomasnih/agent-relay.git
 cd agent-relay
 pnpm install
 pnpm run build
-pnpm --filter @levdomasnih/agent-relay-cli agent-relay --help
+pnpm --filter @agent-relay/cli agent-relay --help
 ```
 
 ## Быстрый старт
@@ -279,6 +279,11 @@ pnpm run check
 pnpm run test
 pnpm run build
 ```
+
+Релизы автоматизированы через GitHub Actions. После bump версий достаточно
+запушить tag `v*`: workflow проверит репозиторий, опубликует npm-пакеты и
+создаст или обновит GitHub Release. Детали настройки npm Trusted Publishing:
+[docs/release.md](docs/release.md).
 
 ## License
 
