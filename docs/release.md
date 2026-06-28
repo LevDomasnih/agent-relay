@@ -44,8 +44,10 @@ Packages:
 - `@agent-relay/mcp-server`
 
 If Trusted Publishing is not enabled yet, add a GitHub Actions secret named
-`NPM_TOKEN` with publish access to these packages. Trusted Publishing is
-preferred because it avoids long-lived npm tokens.
+`NPM_TOKEN` with publish access to these packages. For accounts with 2FA, this
+must be a granular automation token that can bypass two-factor authentication
+for publish operations; a regular login token will fail with npm `EOTP`.
+Trusted Publishing is preferred because it avoids long-lived npm tokens.
 
 ## Before Releasing
 

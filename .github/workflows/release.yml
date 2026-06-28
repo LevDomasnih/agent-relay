@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
-      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -75,6 +75,14 @@ jobs:
       - name: Publish npm packages
         run: |
           set -euo pipefail
+
+          if [ -n "${NPM_TOKEN:-}" ]; then
+            echo "Publishing with NPM_TOKEN."
+            export NODE_AUTH_TOKEN="$NPM_TOKEN"
+          else
+            echo "Publishing with npm Trusted Publishing / GitHub OIDC."
+            unset NODE_AUTH_TOKEN
+          fi
 
           publish_if_needed() {
             package_name="$1"
