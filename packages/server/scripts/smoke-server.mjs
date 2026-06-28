@@ -11,8 +11,11 @@ const repoRoot = path.resolve(packageRoot, "../..");
 const server = path.join(packageRoot, "dist/index.js");
 const cli = path.join(repoRoot, "packages/cli/dist/index.js");
 const token = `smoke-${randomUUID()}`;
+const readToken = `smoke-read-${randomUUID()}`;
+const otherTeamToken = `smoke-other-${randomUUID()}`;
 const port = 3977 + Math.floor(Math.random() * 1000);
 const remoteUrl = `http://127.0.0.1:${port}`;
+const allowedOrigin = "https://dashboard.example.test";
 
 async function run(command, args, options = {}) {
   const result = await execFileAsync(command, args, {
@@ -61,7 +64,12 @@ async function main() {
     cwd: repoRoot,
     env: {
       ...process.env,
-      COORDINAUT_SERVER_TOKEN: token,
+      COORDINAUT_SERVER_TOKENS: JSON.stringify({
+        [token]: { team: "smoke-team", role: "admin" },
+        [readToken]: { team: "smoke-team", role: "read" },
+        [otherTeamToken]: { team: "other-team", role: "admin" },
+      }),
+      COORDINAUT_SERVER_ALLOWED_ORIGINS: allowedOrigin,
       COORDINAUT_SERVER_PORT: String(port),
       COORDINAUT_SERVER_DATA_DIR: dataDir,
     },
@@ -71,6 +79,15 @@ async function main() {
 
   try {
     await waitForHealth();
+    const dashboard = await fetch(`${remoteUrl}/dashboard`);
+    const dashboardHtml = await dashboard.text();
+    if (!dashboard.ok || !dashboardHtml.includes("Coordinaut Dashboard")) {
+      throw new Error("dashboard did not render");
+    }
+    if (dashboard.headers.get("x-frame-options") !== "DENY") {
+      throw new Error("dashboard is missing frame protection");
+    }
+
     const repoA = await tempGitRepo("coordinaut-remote-a-");
     const repoB = await tempGitRepo("coordinaut-remote-b-");
 
@@ -162,6 +179,85 @@ async function main() {
       throw new Error(`remote doctor failed: ${JSON.stringify(doctor.checks)}`);
     }
 
+    const projects = await fetch(`${remoteUrl}/v1/teams/smoke-team/projects`, {
+      headers: { authorization: `Bearer ${token}` },
+    });
+    const projectsBody = await projects.json();
+    if (
+      !projects.ok ||
+      projectsBody.projects.length !== 1 ||
+      projectsBody.projects[0].project !== "smoke-project"
+    ) {
+      throw new Error(
+        `project listing failed: ${JSON.stringify(projectsBody)}`,
+      );
+    }
+
+    const summary = await fetch(
+      `${remoteUrl}/v1/teams/smoke-team/projects/smoke-project/summary`,
+      {
+        headers: {
+          authorization: `Bearer ${readToken}`,
+          origin: allowedOrigin,
+        },
+      },
+    );
+    const summaryBody = await summary.json();
+    if (!summary.ok || summaryBody.counts.tasks !== 1) {
+      throw new Error(`summary failed: ${JSON.stringify(summaryBody)}`);
+    }
+    if (summary.headers.get("access-control-allow-origin") !== allowedOrigin) {
+      throw new Error("allowed CORS origin was not echoed");
+    }
+
+    const readOnlyWrite = await fetch(
+      `${remoteUrl}/v1/teams/smoke-team/projects/smoke-project/messages`,
+      {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${readToken}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          id: randomUUID(),
+          at: new Date().toISOString(),
+        }),
+      },
+    );
+    if (readOnlyWrite.status !== 403) {
+      throw new Error(
+        `expected read-only write to return 403, got ${readOnlyWrite.status}`,
+      );
+    }
+
+    const crossTeam = await fetch(
+      `${remoteUrl}/v1/teams/smoke-team/projects/smoke-project/summary`,
+      {
+        headers: { authorization: `Bearer ${otherTeamToken}` },
+      },
+    );
+    if (crossTeam.status !== 401) {
+      throw new Error(
+        `expected cross-team access to return 401, got ${crossTeam.status}`,
+      );
+    }
+
+    const audit = await fetch(
+      `${remoteUrl}/v1/teams/smoke-team/projects/smoke-project/audit`,
+      {
+        headers: { authorization: `Bearer ${token}` },
+      },
+    );
+    const auditBody = await audit.json();
+    if (
+      !audit.ok ||
+      !auditBody.audit.some((row) => row.message === "read-only token")
+    ) {
+      throw new Error(
+        `audit log missing read-only denial: ${JSON.stringify(auditBody)}`,
+      );
+    }
+
     console.log(
       JSON.stringify({
         ok: true,
@@ -169,6 +265,8 @@ async function main() {
         team: "smoke-team",
         project: "smoke-project",
         task: created.task.displayId,
+        dashboard: true,
+        summary: summaryBody.counts,
       }),
     );
   } finally {

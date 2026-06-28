@@ -47,9 +47,9 @@ State 保存在项目内：
 
 ## 状态
 
-Coordinaut 已经具备从源码发布第一个公开版本的基础。CLI、core package、MCP server、hosted sync server、JSON/SQLite/remote storage adapters、state migrations、CI checks、package dry-runs、CLI smoke test、真实 MCP client smoke test 和 hosted server smoke test 都已实现并验证。
+Coordinaut 已经有第一个公开 release。CLI、core package、MCP server、hosted sync server、只读 web dashboard、JSON/SQLite/remote storage adapters、state migrations、CI checks、package dry-runs、CLI smoke test、真实 MCP client smoke test、hosted server smoke test 和 npm publishing 都已实现并验证。
 
-npm publishing 暂时等待最终公开 package scope 或 rename。
+Packages 已发布到 public scope `@coordinaut`：`@coordinaut/core`、`@coordinaut/cli`、`@coordinaut/mcp-server`、`@coordinaut/server`。
 
 通过 `npx` 运行 CLI：
 

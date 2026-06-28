@@ -48,9 +48,9 @@ State живет рядом с проектом:
 
 ## Статус
 
-Coordinaut готов к первому публичному release из исходников. CLI, core package, MCP server, hosted sync server, JSON/SQLite/remote storage adapters, state migrations, CI checks, package dry-runs, CLI smoke test, реальный MCP client smoke test и hosted server smoke test реализованы и проверены.
+Coordinaut имеет первый публичный release. CLI, core package, MCP server, hosted sync server, read-only web dashboard, JSON/SQLite/remote storage adapters, state migrations, CI checks, package dry-runs, CLI smoke test, реальный MCP client smoke test, hosted server smoke test и npm publishing реализованы и проверены.
 
-npm publishing пока ожидает финального публичного package scope или rename.
+Пакеты опубликованы в public scope `@coordinaut`: `@coordinaut/core`, `@coordinaut/cli`, `@coordinaut/mcp-server`, `@coordinaut/server`.
 
 Установка CLI через `npx`:
 

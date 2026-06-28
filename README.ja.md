@@ -50,9 +50,9 @@ Daemon なし。Database server なし。`/tmp` state なし。
 
 ## Status
 
-Coordinaut は source から最初の public release を出せる状態です。CLI、core package、MCP server、hosted sync server、JSON/SQLite/remote storage adapters、state migrations、CI checks、package dry-runs、CLI smoke test、実際の MCP client smoke test、hosted server smoke test は実装済みで検証済みです。
+Coordinaut は最初の public release 済みです。CLI、core package、MCP server、hosted sync server、read-only web dashboard、JSON/SQLite/remote storage adapters、state migrations、CI checks、package dry-runs、CLI smoke test、実際の MCP client smoke test、hosted server smoke test、npm publishing は実装済みで検証済みです。
 
-npm publishing は最終的な public package scope または rename が決まるまで pending です。
+Packages は public scope `@coordinaut` に公開済みです: `@coordinaut/core`, `@coordinaut/cli`, `@coordinaut/mcp-server`, `@coordinaut/server`.
 
 `npx` で CLI を実行:
 

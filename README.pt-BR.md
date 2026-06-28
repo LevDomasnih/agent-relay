@@ -48,9 +48,9 @@ Sem daemon. Sem database server. Sem state em `/tmp`.
 
 ## Status
 
-Coordinaut está pronto a partir do source para o primeiro release público. CLI, core package, MCP server, hosted sync server, JSON/SQLite/remote storage adapters, state migrations, CI checks, package dry-runs, CLI smoke test, um smoke test real com MCP client e hosted server smoke test estão implementados e verificados.
+Coordinaut já tem seu primeiro release público. CLI, core package, MCP server, hosted sync server, read-only web dashboard, JSON/SQLite/remote storage adapters, state migrations, CI checks, package dry-runs, CLI smoke test, um smoke test real com MCP client, hosted server smoke test e npm publishing estão implementados e verificados.
 
-npm publishing fica pendente até o package scope público final estar disponível ou haver um rename.
+Os pacotes estão publicados no public scope `@coordinaut`: `@coordinaut/core`, `@coordinaut/cli`, `@coordinaut/mcp-server`, `@coordinaut/server`.
 
 Executar a CLI com `npx`:
 

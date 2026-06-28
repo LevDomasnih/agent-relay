@@ -33,6 +33,7 @@ platform is too much.
 | Keep work explainable after thread resume | Events, inbox history, snapshots, and commit trailers |
 | Start local, grow into a team setup       | JSON, SQLite, or hosted remote storage behind one API |
 | Use Codex as the main client              | Install as an MCP server, use CLI only when useful    |
+| Watch hosted coordination live            | Built-in read-only web dashboard                      |
 
 ## Two Ways To Use It
 
@@ -188,8 +189,9 @@ COORDINAUT_TOKEN="<set-a-local-token>" coordinaut init \
 ```
 
 The hosted server stores team/project state in SQLite, uses Bearer-token auth,
-supports `admin`, `member`, and `read` roles, and protects stale writes with
-ETag/`If-Match`.
+supports `admin`, `member`, and `read` roles, protects stale writes with
+ETag/`If-Match`, and serves a read-only dashboard at
+`http://localhost:3737/dashboard`.
 
 ## What It Solves
 
@@ -614,6 +616,9 @@ The server stores team/project data in SQLite and exposes:
 
 ```text
 GET  /health
+GET  /dashboard
+GET  /v1/teams/:team/projects
+GET  /v1/teams/:team/projects/:project/summary
 GET  /v1/teams/:team/projects/:project/config
 PUT  /v1/teams/:team/projects/:project/config
 GET  /v1/teams/:team/projects/:project/state
@@ -623,6 +628,7 @@ POST /v1/teams/:team/projects/:project/events
 GET  /v1/teams/:team/projects/:project/messages
 POST /v1/teams/:team/projects/:project/messages
 POST /v1/teams/:team/projects/:project/backups
+GET  /v1/teams/:team/projects/:project/audit
 ```
 
 Auth is Bearer-token based. For one admin token, set
@@ -640,6 +646,28 @@ Roles:
 
 - `admin` and `member` can read and write.
 - `read` can only read team/project state.
+
+Hosted hardening:
+
+- Team-scoped tokens cannot read another team.
+- Read-only tokens are rejected for every write route.
+- Request bodies are capped by `COORDINAUT_SERVER_MAX_BODY_BYTES` (default
+  `1000000`).
+- Browser/API responses include security headers, request ids, no-store cache
+  headers, and frame protection.
+- Cross-origin browser calls are denied unless the origin is listed in
+  `COORDINAUT_SERVER_ALLOWED_ORIGINS`.
+- Write attempts and auth denials are stored in the project audit log.
+
+Dashboard:
+
+```text
+http://localhost:3737/dashboard
+```
+
+The dashboard is intentionally read-only. Paste a Bearer token, team, and
+project to inspect tasks, agents, events, messages, and status counts without
+giving the UI mutation controls.
 
 ## Multi-Worktree Caveat
 
@@ -701,13 +729,17 @@ Implemented:
 - SQLite storage adapter for larger long-lived projects.
 - Remote backend for distributed teams.
 - Hosted sync with Bearer auth and team/project namespaces.
+- Read-only hosted dashboard.
+- Hosted hardening: scoped tokens, CORS allowlist, body limits, security
+  headers, request ids, and audit log.
 - Richer MCP client smoke tests.
 - Generated shell completions.
 
-## Roadmap
+## After 1.0
 
-- Web dashboard.
-- Hosted multi-tenant deployment hardening.
+- Hosted deployment templates.
+- Optional SSO/team management.
+- Rich dashboard mutations with explicit approvals.
 
 ## License
 

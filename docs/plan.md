@@ -226,6 +226,9 @@ git push -u origin main
   матрицы интеграционных сценариев по реальным MCP clients;
 - `doctor` и `explain` реализованы;
 - npm-публикация настроена для public scope `@coordinaut`.
+- hosted dashboard реализован как read-only UI в `@coordinaut/server`;
+- hosted multi-tenant hardening усилен team-scoped токенами, read-only guard,
+  CORS allowlist, body limit, security headers, request id и audit log.
 
 ## Как не наступить на известные проблемы
 
