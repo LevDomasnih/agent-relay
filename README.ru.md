@@ -280,10 +280,10 @@ pnpm run test
 pnpm run build
 ```
 
-Релизы автоматизированы через GitHub Actions. Запускаешь `Prepare Release` с
-`patch`, `minor` или `major`: workflow сам bump-ит версии, коммитит релиз,
-создает tag, а tag workflow публикует npm-пакеты и создает или обновляет GitHub
-Release. Детали настройки npm Trusted Publishing: [docs/release.md](docs/release.md).
+Релизы автоматизированы от Conventional Commits в `main`: `feat` дает minor,
+`fix`/`perf` дают patch, а `!` или `BREAKING CHANGE:` дают major. Workflow сам
+bump-ит версии, коммитит релиз, ставит tag, публикует npm-пакеты и создает или
+обновляет GitHub Release. Детали: [docs/release.md](docs/release.md).
 
 ## License
 

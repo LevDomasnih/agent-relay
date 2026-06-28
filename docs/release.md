@@ -8,14 +8,20 @@ This project is a pnpm workspace with three publishable packages:
 
 ## Automated Publishing
 
-Releases are prepared and published by GitHub Actions:
+Releases are prepared from Conventional Commits on `main` and published by
+GitHub Actions:
 
-1. Run the `Prepare Release` workflow from GitHub Actions and choose `patch`,
-   `minor`, or `major`.
-2. The workflow bumps every package version, commits the change, creates the
-   matching `v*` tag, and pushes it.
-3. The pushed tag starts `.github/workflows/release.yml`, which publishes npm
-   packages and creates or updates the GitHub Release.
+1. Merge or push conventional commits to `main`.
+2. `.github/workflows/conventional-release.yml` looks at commits since the latest
+   `v*` tag and decides the bump:
+   - `feat:` -> minor
+   - `fix:` or `perf:` -> patch
+   - `type!:` or `BREAKING CHANGE:` -> major
+3. If a release is needed, it bumps every package version, commits the change,
+   creates the matching `v*` tag, pushes it, and dispatches
+   `.github/workflows/release.yml`.
+4. `.github/workflows/release.yml` publishes npm packages and creates or updates
+   the GitHub Release.
 
 For every release it:
 
@@ -50,11 +56,16 @@ preferred because it avoids long-lived npm tokens.
 5. Smoke-test the MCP server with a real MCP client.
 6. Check package contents with `pnpm run pack:dry-run`.
 7. Confirm `doctor` and `migrate` work against a legacy state fixture.
-8. Start `Prepare Release` from GitHub Actions.
+8. Merge a conventional commit to `main`, or run `Conventional Release` manually
+   if you need to re-check the current commit range.
 
 ```bash
-gh workflow run prepare-release.yml -f release_type=patch
+git commit -m "feat: add hosted sync"
+git push origin main
 ```
+
+`Prepare Release` is kept as a manual fallback when you need to force a specific
+`patch`, `minor`, or `major` bump.
 
 ## Manual Publish Fallback
 

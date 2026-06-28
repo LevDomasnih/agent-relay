@@ -1,28 +1,22 @@
-name: Prepare Release
+name: Conventional Release
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
-    inputs:
-      release_type:
-        description: "Version bump type"
-        required: true
-        default: patch
-        type: choice
-        options:
-          - patch
-          - minor
-          - major
 
 permissions:
   contents: write
   actions: write
 
 concurrency:
-  group: prepare-release
+  group: conventional-release
   cancel-in-progress: false
 
 jobs:
-  tag:
+  release:
+    if: github.actor != 'github-actions[bot]' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout main
@@ -45,36 +39,50 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Plan release from conventional commits
+        id: plan
+        run: |
+          set -euo pipefail
+          plan_json="$(node scripts/plan-conventional-release.mjs)"
+          echo "$plan_json"
+          echo "release=$(node -e 'const fs=require("fs"); const p=JSON.parse(fs.readFileSync(0,"utf8")); process.stdout.write(String(p.release));' <<< "$plan_json")" >> "$GITHUB_OUTPUT"
+          echo "bump=$(node -e 'const fs=require("fs"); const p=JSON.parse(fs.readFileSync(0,"utf8")); process.stdout.write(p.bump);' <<< "$plan_json")" >> "$GITHUB_OUTPUT"
+
+      - name: Stop when there is nothing to release
+        if: steps.plan.outputs.release != 'true'
+        run: echo "No feat/fix/perf/breaking conventional commits since the latest v* tag."
+
       - name: Bump versions
+        if: steps.plan.outputs.release == 'true'
         id: bump
         run: |
           set -euo pipefail
-          version="$(node scripts/bump-version.mjs "${{ inputs.release_type }}")"
+          version="$(node scripts/bump-version.mjs "${{ steps.plan.outputs.bump }}")"
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "tag=v$version" >> "$GITHUB_OUTPUT"
 
       - name: Format changed files
+        if: steps.plan.outputs.release == 'true'
         run: pnpm exec prettier --write package.json packages/*/package.json pnpm-lock.yaml
 
       - name: Release check
+        if: steps.plan.outputs.release == 'true'
         run: pnpm run release:check
 
-      - name: Commit version bump
+      - name: Commit version bump and tag
+        if: steps.plan.outputs.release == 'true'
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add package.json packages/core/package.json packages/cli/package.json packages/mcp-server/package.json pnpm-lock.yaml
-          git commit -m "chore: release v${{ steps.bump.outputs.version }}"
-
-      - name: Push commit and tag
-        run: |
-          set -euo pipefail
+          git commit -m "chore(release): ${{ steps.bump.outputs.tag }}"
           git tag -a "${{ steps.bump.outputs.tag }}" -m "${{ steps.bump.outputs.tag }}"
           git push origin HEAD:main
           git push origin "${{ steps.bump.outputs.tag }}"
 
       - name: Publish release workflow
+        if: steps.plan.outputs.release == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh workflow run release.yml --ref main -f tag="${{ steps.bump.outputs.tag }}"
