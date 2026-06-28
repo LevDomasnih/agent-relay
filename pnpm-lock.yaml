@@ -23,8 +23,8 @@ importers:
   packages/cli:
     dependencies:
       "@levdomasnih/agent-relay-core":
-        specifier: workspace:*
-        version: link:../core
+        specifier: 0.1.0
+        version: 0.1.0
       commander:
         specifier: ^14.0.2
         version: 14.0.3
@@ -38,8 +38,8 @@ importers:
   packages/mcp-server:
     dependencies:
       "@levdomasnih/agent-relay-core":
-        specifier: workspace:*
-        version: link:../core
+        specifier: 0.1.0
+        version: 0.1.0
       "@modelcontextprotocol/sdk":
         specifier: ^1.29.0
         version: 1.29.0(zod@4.4.3)
@@ -290,6 +290,12 @@ packages:
     engines: { node: ">=18.14.1" }
     peerDependencies:
       hono: ^4
+
+  "@levdomasnih/agent-relay-core@0.1.0":
+    resolution:
+      {
+        integrity: sha512-/xHrQKkl5I34gGBPFf8yqRNZzBLS2w0OrQBXfEto8VhCKDyJnP3oaNvt3ZAk9PxY8hwb1HvfldBJhhzIaIkt7Q==,
+      }
 
   "@modelcontextprotocol/sdk@1.29.0":
     resolution:
@@ -1090,6 +1096,10 @@ snapshots:
   "@hono/node-server@1.19.14(hono@4.12.27)":
     dependencies:
       hono: 4.12.27
+
+  "@levdomasnih/agent-relay-core@0.1.0":
+    dependencies:
+      minimatch: 10.2.5
 
   "@modelcontextprotocol/sdk@1.29.0(zod@4.4.3)":
     dependencies:

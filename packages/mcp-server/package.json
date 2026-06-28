@@ -40,7 +40,7 @@
     "check": "tsc -b --pretty false"
   },
   "dependencies": {
-    "@levdomasnih/agent-relay-core": "workspace:*",
+    "@levdomasnih/agent-relay-core": "0.1.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "zod": "^4.1.13"
   }
