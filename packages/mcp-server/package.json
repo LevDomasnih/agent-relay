@@ -22,7 +22,7 @@
     "git"
   ],
   "bin": {
-    "agent-relay-mcp": "./dist/index.js"
+    "agent-relay-mcp": "dist/index.js"
   },
   "files": [
     "dist/**/*.js",
