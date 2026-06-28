@@ -6,31 +6,22 @@ Codex, Claude, Cursor, and other Model Context Protocol clients.
 This is the intended agent-native install path. Use `@coordinaut/cli` only
 when you want terminal commands, git hooks, CI checks, or local debugging.
 
-## Install From Source
+## Install From npm
 
-Until npm publishing is enabled:
-
-```bash
-git clone https://github.com/LevDomasnih/coordinaut.git
-cd coordinaut
-pnpm install
-pnpm run build
-```
-
-Codex MCP configuration:
+Use it directly from npm in your MCP client:
 
 ```json
 {
   "mcpServers": {
     "coordinaut": {
-      "command": "node",
-      "args": ["/absolute/path/to/coordinaut/packages/mcp-server/dist/index.js"]
+      "command": "npx",
+      "args": ["@coordinaut/mcp-server"]
     }
   }
 }
 ```
 
-## Install From npm
+or install it globally:
 
 ```bash
 npm install -g @coordinaut/mcp-server
@@ -49,14 +40,25 @@ npm install -g @coordinaut/mcp-server
 }
 ```
 
-You can also run it without global install:
+## Install From Source
+
+For local development from a checkout:
+
+```bash
+git clone https://github.com/LevDomasnih/coordinaut.git
+cd coordinaut
+pnpm install
+pnpm run build
+```
+
+Then point your MCP client at the built server:
 
 ```json
 {
   "mcpServers": {
     "coordinaut": {
-      "command": "npx",
-      "args": ["@coordinaut/mcp-server"]
+      "command": "node",
+      "args": ["/absolute/path/to/coordinaut/packages/mcp-server/dist/index.js"]
     }
   }
 }

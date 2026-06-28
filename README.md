@@ -54,29 +54,7 @@ This is the intended client experience: Codex gets Coordinaut as an MCP server,
 and agents call tools like `create_task`, `claim_task`, `post_message`,
 `verify_worktree`, and `request_handoff`.
 
-Until npm publishing is enabled, build Coordinaut once:
-
-```bash
-git clone https://github.com/LevDomasnih/coordinaut.git
-cd coordinaut
-pnpm install
-pnpm run build
-```
-
-Then add the MCP server to Codex with an absolute path:
-
-```json
-{
-  "mcpServers": {
-    "coordinaut": {
-      "command": "node",
-      "args": ["/absolute/path/to/coordinaut/packages/mcp-server/dist/index.js"]
-    }
-  }
-}
-```
-
-After npm publishing, the config becomes:
+Add the published MCP server to Codex:
 
 ```json
 {
@@ -89,6 +67,32 @@ After npm publishing, the config becomes:
 }
 ```
 
+That is enough for the client path: once the MCP server is configured, Codex
+can initialize the repository and coordinate agents through tools such as
+`init_project`, `create_task`, `claim_task`, and `verify_worktree`.
+
+For local development from a checkout, build Coordinaut once:
+
+```bash
+git clone https://github.com/LevDomasnih/coordinaut.git
+cd coordinaut
+pnpm install
+pnpm run build
+```
+
+Then point Codex at the built server:
+
+```json
+{
+  "mcpServers": {
+    "coordinaut": {
+      "command": "node",
+      "args": ["/absolute/path/to/coordinaut/packages/mcp-server/dist/index.js"]
+    }
+  }
+}
+```
+
 Most MCP tools accept optional `root`. When the MCP client supports tool
 arguments, pass the repository root explicitly so state is written to the right
 project.
@@ -96,11 +100,15 @@ project.
 ## CLI Install
 
 ```bash
-git clone https://github.com/LevDomasnih/coordinaut.git
-cd coordinaut
-pnpm install
-pnpm run build
-pnpm --filter @coordinaut/cli coordinaut --help
+npm install -g @coordinaut/cli
+coordinaut --help
+```
+
+or run it directly:
+
+```bash
+npx @coordinaut/cli init
+npx @coordinaut/cli doctor
 ```
 
 The CLI is still useful for hooks, local checks, shell completions, and manual
