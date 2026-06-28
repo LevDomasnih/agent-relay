@@ -17,7 +17,8 @@ This project is a pnpm workspace with three publishable packages:
 7. Smoke-test the CLI in a clean git repository.
 8. Smoke-test the MCP server with a real MCP client.
 9. Check package contents with `pnpm --filter <package> pack --dry-run`.
-10. Tag the release after publish.
+10. Confirm `doctor` and `migrate` work against a legacy state fixture.
+11. Tag the release after publish.
 
 ## Publish Order
 

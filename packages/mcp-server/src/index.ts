@@ -592,6 +592,20 @@ server.registerTool(
 );
 
 server.registerTool(
+  "migrate_state",
+  {
+    title: "Migrate State",
+    description:
+      "Normalize coordinator state to the current schema and write a backup if changed.",
+    inputSchema: z.object({ root: z.string().optional() }),
+  },
+  async ({ root }) => {
+    const coordinator = await loadCoordinator(root);
+    return jsonResult(await coordinator.migrateState());
+  },
+);
+
+server.registerTool(
   "verify_worktree",
   {
     title: "Verify Worktree",

@@ -247,6 +247,66 @@ test("git identity can be set and restored in a test repo", async () => {
   assert.equal(await gitConfig(root, "user.email"), "human@example.test");
 });
 
+test("migrateState normalizes legacy state and doctor requires current schema", async () => {
+  const root = await tempGitRepo();
+  const coordinator = new AgentCoordinator(root);
+  await coordinator.init("sample");
+  const statePath = path.join(root, ".agent-coordinator/state.json");
+
+  await writeFile(
+    statePath,
+    JSON.stringify(
+      {
+        tasks: [
+          {
+            id: "AGT-20260628-001",
+            title: "Legacy task",
+            repo: "sample",
+            scope: "legacy",
+            status: "todo",
+            filesGlobs: ["src/**"],
+            checks: [],
+            createdAt: "2026-01-01T00:00:00.000Z",
+            updatedAt: "2026-01-01T00:00:00.000Z",
+          },
+        ],
+      },
+      null,
+      2,
+    ),
+  );
+
+  const before = await coordinator.doctor();
+  const report = await coordinator.migrateState();
+  const migrated = JSON.parse(await readFile(statePath, "utf8")) as {
+    version: number;
+    tasks: Array<{ id: string; displayId: string; lockScopes: unknown[] }>;
+    agents: unknown[];
+    handoffs: unknown[];
+    messageReceipts: unknown[];
+  };
+  const after = await coordinator.doctor();
+
+  assert.equal(
+    before.checks.find((check) => check.name === "state")?.ok,
+    false,
+  );
+  assert.equal(report.changed, true);
+  assert.equal(report.toVersion, 1);
+  assert.ok(report.backupPath);
+  await access(report.backupPath);
+  assert.equal(migrated.version, 1);
+  assert.equal(migrated.tasks[0]?.displayId, "AGT-20260628-001");
+  assert.notEqual(migrated.tasks[0]?.id, "AGT-20260628-001");
+  assert.deepEqual(migrated.tasks[0]?.lockScopes, [
+    { glob: "src/**", mode: "exclusive" },
+  ]);
+  assert.deepEqual(migrated.agents, []);
+  assert.deepEqual(migrated.handoffs, []);
+  assert.deepEqual(migrated.messageReceipts, []);
+  assert.equal(after.checks.find((check) => check.name === "state")?.ok, true);
+});
+
 test("verify-worktree reports unclaimed files and accepts claimed scopes", async () => {
   const root = await tempGitRepo();
   await writeFile(path.join(root, "owned.ts"), "owned\n");

@@ -10,6 +10,8 @@ Before editing:
 3. If another active task owns the same scope, request handoff instead of
    editing.
 4. Run `agent-coordinator verify-worktree` before broad edits or handoff.
+5. If `agent-coordinator doctor` reports a state schema mismatch, run
+   `agent-coordinator migrate` before editing.
 
 Before final response, pause, or handoff:
 

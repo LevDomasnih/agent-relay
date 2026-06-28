@@ -332,6 +332,7 @@ client so the server never writes coordinator state in the wrong directory.
 | `git_identity`        | Set local git identity                               |
 | `git_identity_reset`  | Restore previous git identity                        |
 | `doctor`              | Diagnose setup                                       |
+| `migrate_state`       | Normalize state schema and write a backup if needed  |
 | `verify_worktree`     | Check modified files against claims                  |
 | `verify_commit`       | Check staged files and trailers                      |
 | `verify_commit_range` | Check commit trailers and task scopes across a range |
@@ -403,6 +404,7 @@ git-identity
 git-identity-reset
 install-hooks
 doctor
+migrate
 verify-worktree
 verify-commit
 verify-commit-range
@@ -422,6 +424,18 @@ agent-coordinator init --state-dir /path/to/shared-agent-coordinator-state
 
 `agent-coordinator doctor` prints the resolved root and state path so this is
 visible.
+
+## State Migrations
+
+`agent-coordinator doctor` checks the state schema version. If it reports that
+state requires migration, run:
+
+```bash
+agent-coordinator migrate
+```
+
+Migration normalizes `state.json` to the current schema and writes a
+`state.json.bak-*` backup before changing the file.
 
 ## Development
 

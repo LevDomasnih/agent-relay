@@ -575,6 +575,18 @@ program
   });
 
 program
+  .command("migrate")
+  .description(
+    "Normalize coordinator state to the current schema and write a backup if changed.",
+  )
+  .action(async () => {
+    const coordinator = await loadCoordinator();
+    const report = await coordinator.migrateState();
+    console.log(JSON.stringify(report, null, 2));
+    if (!report.ok) process.exitCode = 1;
+  });
+
+program
   .command("verify-worktree")
   .description("Verify modified files are covered by the current agent claim.")
   .option("--agent <name>", "Agent name")

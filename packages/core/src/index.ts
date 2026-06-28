@@ -9,6 +9,7 @@ import {
   rm,
   stat,
   chmod,
+  copyFile,
   writeFile,
 } from "node:fs/promises";
 import path from "node:path";
@@ -154,6 +155,8 @@ export type CoordinatorState = {
   gitIdentityBackup?: GitIdentityBackup;
 };
 
+export const CURRENT_STATE_VERSION = 1 as const;
+
 export type CoordinatorPaths = {
   root: string;
   dir: string;
@@ -243,6 +246,16 @@ export type DoctorReport = {
   statePath: string;
   snapshotPath: string;
   checks: DoctorCheck[];
+};
+
+export type MigrationReport = {
+  ok: boolean;
+  fromVersion?: number;
+  toVersion: typeof CURRENT_STATE_VERSION;
+  changed: boolean;
+  statePath: string;
+  backupPath?: string;
+  messages: string[];
 };
 
 export type VerifyWorktreeInput = {
@@ -438,7 +451,7 @@ export class AgentCoordinator {
     await mkdir(this.paths.stateDir, { recursive: true });
     await mkdir(path.join(this.paths.dir, "snapshots"), { recursive: true });
     const config: CoordinatorConfig = {
-      version: 1,
+      version: CURRENT_STATE_VERSION,
       projectName,
       defaultLeaseMinutes: 120,
       snapshotPath: ".agent-coordinator/snapshots/TASKS.md",
@@ -455,7 +468,7 @@ export class AgentCoordinator {
     }
     if (!existsSync(this.paths.state)) {
       await this.storage.writeState({
-        version: 1,
+        version: CURRENT_STATE_VERSION,
         tasks: [],
         agents: [],
         handoffs: [],
@@ -1052,7 +1065,7 @@ export class AgentCoordinator {
     const state = existsSync(this.paths.state)
       ? await this.storage.readState()
       : ({
-          version: 1,
+          version: CURRENT_STATE_VERSION,
           tasks: [],
           agents: [],
           handoffs: [],
@@ -1131,6 +1144,39 @@ export class AgentCoordinator {
     });
   }
 
+  async migrateState(): Promise<MigrationReport> {
+    await this.ensureInitialized();
+    const raw = await readJson<Partial<CoordinatorState>>(this.paths.state);
+    const fromVersion =
+      typeof raw.version === "number" ? raw.version : undefined;
+    const normalized = normalizeState(raw);
+    const changed = JSON.stringify(raw) !== JSON.stringify(normalized);
+    const messages = [];
+    let backupPath: string | undefined;
+    if (changed) {
+      backupPath = `${this.paths.state}.bak-${timestamp().replace(/[:.]/gu, "-")}`;
+      await copyFile(this.paths.state, backupPath);
+      await this.storage.writeState(normalized);
+      await this.appendEvent({
+        type: "state.migrated",
+        message: `Migrated state from ${fromVersion ?? "unknown"} to ${CURRENT_STATE_VERSION}`,
+        data: { fromVersion, toVersion: CURRENT_STATE_VERSION, backupPath },
+      });
+      messages.push("state normalized and backup written");
+    } else {
+      messages.push("state already matches current schema");
+    }
+    return {
+      ok: true,
+      fromVersion,
+      toVersion: CURRENT_STATE_VERSION,
+      changed,
+      statePath: this.paths.state,
+      backupPath,
+      messages,
+    };
+  }
+
   async doctor(): Promise<DoctorReport> {
     const checks: DoctorCheck[] = [];
     checks.push(
@@ -1157,7 +1203,13 @@ export class AgentCoordinator {
     });
     checks.push(
       await check("state", async () => {
-        const state = await this.storage.readState();
+        const raw = await readJson<Partial<CoordinatorState>>(this.paths.state);
+        if (raw.version !== CURRENT_STATE_VERSION) {
+          throw new Error(
+            `state schema version ${raw.version ?? "unknown"} requires migration to ${CURRENT_STATE_VERSION}`,
+          );
+        }
+        const state = normalizeState(raw);
         return `${state.tasks.length} task(s), ${state.agents.length} agent instance(s)`;
       }),
     );
@@ -1482,7 +1534,7 @@ function normalizeState(input: Partial<CoordinatorState>): CoordinatorState {
     } as Task;
   });
   return {
-    version: 1,
+    version: CURRENT_STATE_VERSION,
     tasks,
     agents: input.agents ?? [],
     handoffs: input.handoffs ?? [],

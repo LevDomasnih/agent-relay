@@ -266,7 +266,7 @@ explícitamente para que el server no escriba state en el directorio equivocado.
 init, status, create, claim, update, heartbeat, release
 mine, conflicts, message, inbox, inbox-read, presence, watch
 handoff request, handoff respond, handoff list
-snapshot, explain, doctor
+snapshot, explain, doctor, migrate
 git-identity, git-identity-reset
 install-hooks, verify-worktree, verify-commit, verify-commit-range
 ```
