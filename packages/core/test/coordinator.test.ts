@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import test from "node:test";
-import { AgentCoordinator } from "../src/index.ts";
+import { AgentCoordinator, findProjectRoot } from "../src/index.ts";
 
 const execFileAsync = promisify(execFile);
 
@@ -16,10 +16,10 @@ test("init creates coordinator files and a generated snapshot", async () => {
   await coordinator.init("sample");
 
   const state = JSON.parse(
-    await readFile(path.join(root, ".agent-coordinator/state.json"), "utf8"),
+    await readFile(path.join(root, ".agent-relay/state.json"), "utf8"),
   ) as { tasks: unknown[]; agents: unknown[] };
   const snapshot = await readFile(
-    path.join(root, ".agent-coordinator/snapshots/TASKS.md"),
+    path.join(root, ".agent-relay/snapshots/TASKS.md"),
     "utf8",
   );
 
@@ -54,6 +54,51 @@ test("shared stateDir lets separate checkouts use the same coordinator state", a
   assert.ok(
     doctor.checks.some((check) => check.name === "state dir" && check.ok),
   );
+});
+
+test("legacy .agent-coordinator state remains readable after rename", async () => {
+  const root = await tempGitRepo();
+  const legacyDir = path.join(root, ".agent-coordinator");
+  const nestedDir = path.join(root, "nested");
+  await mkdir(legacyDir);
+  await mkdir(nestedDir);
+  await writeFile(
+    path.join(legacyDir, "config.json"),
+    JSON.stringify(
+      {
+        version: 1,
+        projectName: "legacy",
+        defaultLeaseMinutes: 120,
+        snapshotPath: ".agent-coordinator/snapshots/TASKS.md",
+      },
+      null,
+      2,
+    ),
+  );
+  await writeFile(
+    path.join(legacyDir, "state.json"),
+    JSON.stringify(
+      {
+        version: 1,
+        tasks: [],
+        agents: [],
+        handoffs: [],
+        messageReceipts: [],
+      },
+      null,
+      2,
+    ),
+  );
+  await writeFile(path.join(legacyDir, "events.jsonl"), "");
+  await writeFile(path.join(legacyDir, "messages.jsonl"), "");
+
+  const coordinator = new AgentCoordinator(root);
+  const foundRoot = await findProjectRoot(nestedDir);
+  const tasks = await coordinator.listTasks();
+
+  assert.equal(coordinator.paths.dir, legacyDir);
+  assert.equal(foundRoot, root);
+  assert.deepEqual(tasks, []);
 });
 
 test("create and claim use display ids while storing stable machine ids", async () => {
@@ -239,9 +284,9 @@ test("git identity can be set and restored in a test repo", async () => {
   const setEmail = await gitConfig(root, "user.email");
   const reset = await coordinator.resetGitIdentity();
 
-  assert.equal(identity.email, "codex+thread_1@agent-coordinator.local");
+  assert.equal(identity.email, "codex+thread_1@agent-relay.local");
   assert.equal(setName, "agent-a");
-  assert.equal(setEmail, "codex+thread_1@agent-coordinator.local");
+  assert.equal(setEmail, "codex+thread_1@agent-relay.local");
   assert.equal(reset.restored, true);
   assert.equal(await gitConfig(root, "user.name"), "Human");
   assert.equal(await gitConfig(root, "user.email"), "human@example.test");
@@ -251,7 +296,7 @@ test("migrateState normalizes legacy state and doctor requires current schema", 
   const root = await tempGitRepo();
   const coordinator = new AgentCoordinator(root);
   await coordinator.init("sample");
-  const statePath = path.join(root, ".agent-coordinator/state.json");
+  const statePath = path.join(root, ".agent-relay/state.json");
 
   await writeFile(
     statePath,
@@ -570,7 +615,7 @@ test("install-hooks writes executable local git hooks", async () => {
 });
 
 async function tempGitRepo(): Promise<string> {
-  const root = await mkdtemp(path.join(os.tmpdir(), "agent-coordinator-"));
+  const root = await mkdtemp(path.join(os.tmpdir(), "agent-relay-"));
   await execFileAsync("git", ["init"], { cwd: root });
   await execFileAsync("git", ["config", "user.name", "Test User"], {
     cwd: root,

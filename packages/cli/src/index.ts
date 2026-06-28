@@ -8,19 +8,19 @@ import {
   TASK_STATUSES,
   findProjectRoot,
   type TaskStatus,
-} from "@agent-coordinator/core";
+} from "@agent-relay/core";
 import { readFile } from "node:fs/promises";
 
 const program = new Command();
 
 program
-  .name("agent-coordinator")
+  .name("agent-relay")
   .description("Project-local coordination for parallel AI coding agents.")
   .version("0.1.0");
 
 program
   .command("init")
-  .description("Initialize Agent Coordinator in the current project.")
+  .description("Initialize Agent Relay in the current project.")
   .option("--project-name <name>", "Project name")
   .option("--state-dir <path>", "Shared state directory for worktree families")
   .action(async (options: { projectName?: string; stateDir?: string }) => {
@@ -551,7 +551,7 @@ program
   .option(
     "--agent-instance-env <name>",
     "Environment variable used by hooks",
-    "AGENT_COORDINATOR_INSTANCE",
+    "AGENT_RELAY_INSTANCE",
   )
   .action(async (options: { agentInstanceEnv: string }) => {
     const coordinator = await loadCoordinator();

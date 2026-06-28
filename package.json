@@ -1,5 +1,5 @@
 {
-  "name": "agent-coordinator-monorepo",
+  "name": "agent-relay-monorepo",
   "private": true,
   "version": "0.1.0",
   "description": "Project-local coordination layer for parallel AI coding agents.",
@@ -7,12 +7,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/LevDomasnih/agent-coordinator.git"
+    "url": "git+https://github.com/LevDomasnih/agent-relay.git"
   },
   "bugs": {
-    "url": "https://github.com/LevDomasnih/agent-coordinator/issues"
+    "url": "https://github.com/LevDomasnih/agent-relay/issues"
   },
-  "homepage": "https://github.com/LevDomasnih/agent-coordinator#readme",
+  "homepage": "https://github.com/LevDomasnih/agent-relay#readme",
   "packageManager": "pnpm@9.15.4",
   "workspaces": [
     "packages/*"
@@ -23,7 +23,7 @@
     "test": "node --test --import tsx packages/core/test/*.test.ts",
     "format": "prettier --check .",
     "format:write": "prettier --write .",
-    "pack:dry-run": "npm pack --dry-run --json --workspace @agent-coordinator/core --workspace @agent-coordinator/cli --workspace @agent-coordinator/mcp-server",
+    "pack:dry-run": "npm pack --dry-run --json --workspace @agent-relay/core --workspace @agent-relay/cli --workspace @agent-relay/mcp-server",
     "release:check": "pnpm run format && pnpm run check && pnpm run test && pnpm run build && pnpm run pack:dry-run"
   },
   "devDependencies": {

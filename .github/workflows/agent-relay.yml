@@ -1,4 +1,4 @@
-name: Agent Coordinator
+name: Agent Relay
 
 on:
   pull_request:
@@ -47,5 +47,5 @@ jobs:
       - name: Verify agent commit trailers
         if: github.event_name == 'pull_request'
         run: |
-          pnpm --filter @agent-coordinator/cli agent-coordinator init --project-name agent-coordinator-ci
-          pnpm --filter @agent-coordinator/cli agent-coordinator verify-commit-range --range "origin/${{ github.base_ref }}..HEAD"
+          pnpm --filter @agent-relay/cli agent-relay init --project-name agent-relay-ci
+          pnpm --filter @agent-relay/cli agent-relay verify-commit-range --range "origin/${{ github.base_ref }}..HEAD"

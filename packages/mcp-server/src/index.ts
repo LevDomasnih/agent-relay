@@ -10,10 +10,10 @@ import {
   type LockMode,
   type MessageKind,
   type TaskStatus,
-} from "@agent-coordinator/core";
+} from "@agent-relay/core";
 import { z } from "zod";
 
-const server = new McpServer({ name: "agent-coordinator", version: "0.1.0" });
+const server = new McpServer({ name: "agent-relay", version: "0.1.0" });
 
 const taskStatusSchema = z.enum(TASK_STATUSES);
 const listSchema = z.array(z.string()).optional();
@@ -49,7 +49,7 @@ server.registerTool(
   "init_project",
   {
     title: "Initialize Project",
-    description: "Initialize Agent Coordinator in the current project.",
+    description: "Initialize Agent Relay in the current project.",
     inputSchema: z.object({
       projectName: z.string().optional(),
       stateDir: z.string().optional(),
@@ -698,6 +698,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((error: unknown) => {
-  console.error("Fatal error in agent-coordinator MCP server:", error);
+  console.error("Fatal error in agent-relay MCP server:", error);
   process.exit(1);
 });

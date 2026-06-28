@@ -1,4 +1,4 @@
-# Agent Coordinator
+# Agent Relay
 
 [English](README.md) · [Русский](README.ru.md) · [简体中文](README.zh-CN.md) ·
 [Deutsch](README.de.md) · [Español](README.es.md) ·
@@ -6,7 +6,7 @@
 
 Coordina varios AI coding agents dentro de un mismo repositorio git.
 
-Agent Coordinator da a Codex, Claude Code, Cursor y otros coding agents un
+Agent Relay da a Codex, Claude Code, Cursor y otros coding agents un
 protocolo project-local para tareas, scoped locks, leases, handoffs, mensajes,
 verificaciones, snapshots Markdown y git attribution.
 
@@ -14,16 +14,16 @@ Es la capa intermedia entre "todos editan `AGENT_TASKS.md` a mano" y "ya
 necesitamos una plataforma de orquestación hospedada".
 
 ```text
-agent-coordinator claim --task AGT-20260628-001 --agent frontend-codex --files "src/pages/settings/**"
-agent-coordinator verify-worktree --agent-instance agent_123
-agent-coordinator release --task AGT-20260628-001 --reason "iteration finished"
+agent-relay claim --task AGT-20260628-001 --agent frontend-codex --files "src/pages/settings/**"
+agent-relay verify-worktree --agent-instance agent_123
+agent-relay release --task AGT-20260628-001 --reason "iteration finished"
 ```
 
 ## Qué resuelve
 
 Un tablero Markdown es cómodo para humanos, pero frágil para agents en paralelo.
 
-| Sin coordinator                                      | Con Agent Coordinator                                  |
+| Sin coordinator                                      | Con Agent Relay                                        |
 | ---------------------------------------------------- | ------------------------------------------------------ |
 | Dos agents pueden tomar el mismo archivo en silencio | Los active claims solapados devuelven conflict         |
 | Un agent muerto deja ownership obsoleto              | Los leases expiran y takeover requiere reason          |
@@ -35,7 +35,7 @@ Un tablero Markdown es cómodo para humanos, pero frágil para agents en paralel
 El state vive dentro del proyecto:
 
 ```text
-.agent-coordinator/
+.agent-relay/
   config.json
   state.json
   events.jsonl
@@ -48,24 +48,23 @@ Sin daemon. Sin database server. Sin state en `/tmp`.
 
 ## Estado
 
-Este es un early MVP. CLI, core package y MCP server están implementados,
-probados y listos para publicar. Los packages npm todavía no se publicaron.
+Esta es una versión v0.1-ready. CLI, core package, MCP server, state migrations, CI checks y package dry-runs están implementados y probados. Los packages npm todavía no se publicaron.
 
 Usar desde source:
 
 ```bash
-git clone https://github.com/LevDomasnih/agent-coordinator.git
-cd agent-coordinator
+git clone https://github.com/LevDomasnih/agent-relay.git
+cd agent-relay
 pnpm install
 pnpm run build
-pnpm --filter @agent-coordinator/cli agent-coordinator --help
+pnpm --filter @agent-relay/cli agent-relay --help
 ```
 
 Uso previsto después del primer npm release:
 
 ```bash
-npx @agent-coordinator/cli init
-npx @agent-coordinator/cli doctor
+npx @agent-relay/cli init
+npx @agent-relay/cli doctor
 ```
 
 ## Quick Start
@@ -73,20 +72,20 @@ npx @agent-coordinator/cli doctor
 Inicializa el repositorio:
 
 ```bash
-agent-coordinator init
-agent-coordinator doctor
+agent-relay init
+agent-relay doctor
 ```
 
 Para varios git worktrees, usa un state compartido:
 
 ```bash
-agent-coordinator init --state-dir ../.agent-coordinator-shared
+agent-relay init --state-dir ../.agent-relay-shared
 ```
 
 Crea una tarea:
 
 ```bash
-agent-coordinator create \
+agent-relay create \
   --title "Fix settings layout" \
   --scope "settings page" \
   --files "src/pages/settings/**"
@@ -95,7 +94,7 @@ agent-coordinator create \
 Haz claim antes de editar:
 
 ```bash
-agent-coordinator claim \
+agent-relay claim \
   --task AGT-20260628-001 \
   --agent frontend-codex \
   --agent-instance agent_123 \
@@ -106,22 +105,22 @@ agent-coordinator claim \
 Durante el trabajo:
 
 ```bash
-agent-coordinator heartbeat --task AGT-20260628-001 --agent-instance agent_123
-agent-coordinator update --task AGT-20260628-001 --status fixing --next "patch layout drift"
+agent-relay heartbeat --task AGT-20260628-001 --agent-instance agent_123
+agent-relay update --task AGT-20260628-001 --status fixing --next "patch layout drift"
 ```
 
 Antes de handoff, commit o final response:
 
 ```bash
-agent-coordinator verify-worktree --agent-instance agent_123
+agent-relay verify-worktree --agent-instance agent_123
 ```
 
 Termina la iteración:
 
 ```bash
-agent-coordinator update --task AGT-20260628-001 --status verifying --next "run focused regression"
-agent-coordinator release --task AGT-20260628-001 --agent-instance agent_123 --reason "iteration finished"
-agent-coordinator snapshot
+agent-relay update --task AGT-20260628-001 --status verifying --next "run focused regression"
+agent-relay release --task AGT-20260628-001 --agent-instance agent_123 --reason "iteration finished"
+agent-relay snapshot
 ```
 
 ## Protocolo del agent
@@ -145,7 +144,7 @@ logs.
 Si necesitas un scope que pertenece a otro agent:
 
 ```bash
-agent-coordinator handoff request \
+agent-relay handoff request \
   --task AGT-20260628-002 \
   --agent backend-codex \
   --agent-instance agent_456 \
@@ -156,7 +155,7 @@ agent-coordinator handoff request \
 El owner responde:
 
 ```bash
-agent-coordinator handoff respond \
+agent-relay handoff respond \
   --id handoff_... \
   --status grant_after_commit \
   --agent frontend-codex \
@@ -170,43 +169,43 @@ Estados: `grant_after_commit`, `handoff_now`, `denied`, `cancelled`.
 Los agents pueden comunicarse mediante inbox:
 
 ```bash
-agent-coordinator message \
+agent-relay message \
   --from-agent frontend-codex \
   --from-agent-instance agent_123 \
   --to-agent-instance agent_456 \
   --kind question \
   --text "Can you take package.json after this commit?"
 
-agent-coordinator inbox --agent-instance agent_456
-agent-coordinator inbox-read --agent-instance agent_456 --messages msg_...
+agent-relay inbox --agent-instance agent_456
+agent-relay inbox-read --agent-instance agent_456 --messages msg_...
 ```
 
 También hay broadcast, mentions, presence y watch:
 
 ```bash
-agent-coordinator message --from-agent release-codex --broadcast --kind blocker --text "Release branch is frozen."
-agent-coordinator presence
-agent-coordinator watch --limit 20
+agent-relay message --from-agent release-codex --broadcast --kind blocker --text "Release branch is frozen."
+agent-relay presence
+agent-relay watch --limit 20
 ```
 
 ## Verificaciones y Git Hooks
 
 ```bash
-agent-coordinator verify-worktree --agent-instance agent_123
-agent-coordinator verify-commit --agent-instance agent_123 --message-file .git/COMMIT_EDITMSG
+agent-relay verify-worktree --agent-instance agent_123
+agent-relay verify-commit --agent-instance agent_123 --message-file .git/COMMIT_EDITMSG
 ```
 
 Instalar hooks:
 
 ```bash
-agent-coordinator install-hooks
-export AGENT_COORDINATOR_INSTANCE=agent_123
+agent-relay install-hooks
+export AGENT_RELAY_INSTANCE=agent_123
 ```
 
 Para PR/CI:
 
 ```bash
-agent-coordinator verify-commit-range --range "origin/main..HEAD"
+agent-relay verify-commit-range --range "origin/main..HEAD"
 ```
 
 Regla de diseño:
@@ -218,7 +217,7 @@ MCP is the protocol. Hooks and checks are the enforcement.
 ## Git Attribution
 
 ```bash
-agent-coordinator git-identity \
+agent-relay git-identity \
   --agent frontend-codex \
   --agent-instance agent_123 \
   --thread 019eff77 \
@@ -237,20 +236,20 @@ Agent-Task: AGT-20260628-001
 Restaurar git identity anterior:
 
 ```bash
-agent-coordinator git-identity-reset
+agent-relay git-identity-reset
 ```
 
 ## MCP Server
 
 ```bash
-agent-coordinator-mcp
+agent-relay-mcp
 ```
 
 ```json
 {
   "mcpServers": {
-    "agent-coordinator": {
-      "command": "agent-coordinator-mcp",
+    "agent-relay": {
+      "command": "agent-relay-mcp",
       "args": []
     }
   }

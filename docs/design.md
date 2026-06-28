@@ -1,9 +1,9 @@
 # Design
 
-Agent Coordinator is a local coordination layer for agents working in one
+Agent Relay is a local coordination layer for agents working in one
 repository.
 
-The first implementation stores state under `.agent-coordinator/` using JSON
+The first implementation stores state under `.agent-relay/` using JSON
 state plus JSONL events. Mutations acquire a short-lived lock file so concurrent
 agent processes do not write at the same time.
 

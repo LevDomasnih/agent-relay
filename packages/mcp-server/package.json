@@ -1,18 +1,18 @@
 {
-  "name": "@agent-coordinator/mcp-server",
+  "name": "@agent-relay/mcp-server",
   "version": "0.1.0",
-  "description": "MCP server for Agent Coordinator.",
+  "description": "MCP server for Agent Relay.",
   "type": "module",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/LevDomasnih/agent-coordinator.git",
+    "url": "git+https://github.com/LevDomasnih/agent-relay.git",
     "directory": "packages/mcp-server"
   },
   "bugs": {
-    "url": "https://github.com/LevDomasnih/agent-coordinator/issues"
+    "url": "https://github.com/LevDomasnih/agent-relay/issues"
   },
-  "homepage": "https://github.com/LevDomasnih/agent-coordinator#readme",
+  "homepage": "https://github.com/LevDomasnih/agent-relay#readme",
   "keywords": [
     "ai-agents",
     "coding-agents",
@@ -22,7 +22,7 @@
     "git"
   ],
   "bin": {
-    "agent-coordinator-mcp": "./dist/index.js"
+    "agent-relay-mcp": "./dist/index.js"
   },
   "files": [
     "dist/**/*.js",
@@ -40,7 +40,7 @@
     "check": "tsc -b --pretty false"
   },
   "dependencies": {
-    "@agent-coordinator/core": "workspace:*",
+    "@agent-relay/core": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "zod": "^4.1.13"
   }

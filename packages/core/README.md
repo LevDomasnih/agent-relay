@@ -1,17 +1,17 @@
-# @agent-coordinator/core
+# @agent-relay/core
 
 Core project-local state, locking, handoff, verification, and git attribution
-logic for Agent Coordinator.
+logic for Agent Relay.
 
 Use this package when you want to embed coordination into a custom CLI, MCP
 server, agent runtime, or repository automation.
 
 ```bash
-npm install @agent-coordinator/core
+npm install @agent-relay/core
 ```
 
 ```ts
-import { AgentCoordinator } from "@agent-coordinator/core";
+import { AgentCoordinator } from "@agent-relay/core";
 
 const coordinator = new AgentCoordinator(process.cwd());
 await coordinator.init("my-project");
@@ -33,8 +33,8 @@ await coordinator.createTask({
 
 ## Related Packages
 
-- `@agent-coordinator/cli` for terminal workflows.
-- `@agent-coordinator/mcp-server` for Codex, Claude, Cursor, and other MCP
+- `@agent-relay/cli` for terminal workflows.
+- `@agent-relay/mcp-server` for Codex, Claude, Cursor, and other MCP
   clients.
 
-Full documentation: https://github.com/LevDomasnih/agent-coordinator#readme
+Full documentation: https://github.com/LevDomasnih/agent-relay#readme

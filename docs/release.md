@@ -2,9 +2,9 @@
 
 This project is a pnpm workspace with three publishable packages:
 
-- `@agent-coordinator/core`
-- `@agent-coordinator/cli`
-- `@agent-coordinator/mcp-server`
+- `@agent-relay/core`
+- `@agent-relay/cli`
+- `@agent-relay/mcp-server`
 
 ## Before Publishing
 
@@ -22,9 +22,9 @@ This project is a pnpm workspace with three publishable packages:
 Publish core first, then CLI and MCP server:
 
 ```bash
-pnpm --filter @agent-coordinator/core publish --access public
-pnpm --filter @agent-coordinator/cli publish --access public
-pnpm --filter @agent-coordinator/mcp-server publish --access public
+pnpm --filter @agent-relay/core publish --access public
+pnpm --filter @agent-relay/cli publish --access public
+pnpm --filter @agent-relay/mcp-server publish --access public
 ```
 
 ## Post-Publish Smoke
@@ -33,15 +33,15 @@ pnpm --filter @agent-coordinator/mcp-server publish --access public
 tmp="$(mktemp -d)"
 cd "$tmp"
 git init
-npx @agent-coordinator/cli init
-npx @agent-coordinator/cli doctor
-npx @agent-coordinator/cli create --title "Smoke" --scope "src" --files "src/**"
-npx @agent-coordinator/cli status
+npx @agent-relay/cli init
+npx @agent-relay/cli doctor
+npx @agent-relay/cli create --title "Smoke" --scope "src" --files "src/**"
+npx @agent-relay/cli status
 ```
 
 ## Notes
 
-- Do not publish `.agent-coordinator/`, `node_modules/`, or `dist` from the
+- Do not publish `.agent-relay/`, `node_modules/`, or `dist` from the
   repository root.
 - Keep generated snapshots as human-readable output only.
 - Commit trailers are part of the public workflow contract; do not remove them

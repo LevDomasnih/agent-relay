@@ -1,17 +1,17 @@
 # Agent Coordination
 
-This project uses Agent Coordinator as the source of truth for parallel agent
+This project uses Agent Relay as the source of truth for parallel agent
 work.
 
 Before editing:
 
-1. Run `agent-coordinator status`.
-2. Claim a task and files/globs with `agent-coordinator claim`.
+1. Run `agent-relay status`.
+2. Claim a task and files/globs with `agent-relay claim`.
 3. If another active task owns the same scope, request handoff instead of
    editing.
-4. Run `agent-coordinator verify-worktree` before broad edits or handoff.
-5. If `agent-coordinator doctor` reports a state schema mismatch, run
-   `agent-coordinator migrate` before editing.
+4. Run `agent-relay verify-worktree` before broad edits or handoff.
+5. If `agent-relay doctor` reports a state schema mismatch, run
+   `agent-relay migrate` before editing.
 
 Before final response, pause, or handoff:
 
@@ -27,6 +27,6 @@ Commit rules:
 - Staged files must fit the active claim for the agent instance.
 - If a commit touches a shared file, the handoff or takeover reason must be in
   coordinator events/messages.
-- Pull requests should pass `agent-coordinator verify-commit-range`.
+- Pull requests should pass `agent-relay verify-commit-range`.
 
 Do not treat generated Markdown snapshots as the source of truth.
