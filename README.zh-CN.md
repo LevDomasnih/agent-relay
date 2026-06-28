@@ -156,6 +156,30 @@ agent-coordinator handoff respond \
 
 支持的状态：`grant_after_commit`、`handoff_now`、`denied`、`cancelled`。
 
+## Inbox 和 Presence
+
+Agents 可以通过 inbox 通信：
+
+```bash
+agent-coordinator message \
+  --from-agent frontend-codex \
+  --from-agent-instance agent_123 \
+  --to-agent-instance agent_456 \
+  --kind question \
+  --text "Can you take package.json after this commit?"
+
+agent-coordinator inbox --agent-instance agent_456
+agent-coordinator inbox-read --agent-instance agent_456 --messages msg_...
+```
+
+也支持 broadcast、mentions、presence 和 watch：
+
+```bash
+agent-coordinator message --from-agent release-codex --broadcast --kind blocker --text "Release branch is frozen."
+agent-coordinator presence
+agent-coordinator watch --limit 20
+```
+
 ## 校验和 Git Hooks
 
 ```bash
@@ -225,7 +249,7 @@ agent-coordinator-mcp
 
 ```text
 init, status, create, claim, update, heartbeat, release
-mine, conflicts, message
+mine, conflicts, message, inbox, inbox-read, presence, watch
 handoff request, handoff respond, handoff list
 snapshot, explain, doctor
 git-identity, git-identity-reset

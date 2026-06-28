@@ -131,9 +131,10 @@ a small lifecycle:
 2. Claim a task and file scope before editing.
 3. Heartbeat while working.
 4. Request handoff if a shared file is owned by another active claim.
-5. Verify modified or staged files against the active claim.
-6. Release the lease, record a blocker, or mark the task done.
-7. Leave commit trailers so future agents can explain the change.
+5. Check `inbox` for questions, blockers, handoffs, and broadcasts.
+6. Verify modified or staged files against the active claim.
+7. Release the lease, record a blocker, or mark the task done.
+8. Leave commit trailers so future agents can explain the change.
 
 The generated Markdown snapshot is for humans. The JSON state and JSONL logs are
 the source of truth.
@@ -169,6 +170,39 @@ Supported responses:
 - `cancelled`
 
 Every request and response is written to the event log and message log.
+
+## Agent Inbox And Presence
+
+Agents can talk through an inbox instead of scraping JSONL logs:
+
+```bash
+agent-coordinator message \
+  --from-agent frontend-codex \
+  --from-agent-instance agent_123 \
+  --to-agent-instance agent_456 \
+  --kind question \
+  --text "Can you take package.json after this commit?"
+
+agent-coordinator inbox --agent-instance agent_456
+agent-coordinator inbox-read --agent-instance agent_456 --messages msg_...
+```
+
+Broadcasts and mentions are supported too:
+
+```bash
+agent-coordinator message \
+  --from-agent release-codex \
+  --broadcast \
+  --kind blocker \
+  --text "Release branch is frozen until CI recovers."
+```
+
+See who is active and what they hold:
+
+```bash
+agent-coordinator presence
+agent-coordinator watch --limit 20
+```
 
 ## Verification And Git Hooks
 
@@ -340,6 +374,10 @@ release
 mine
 conflicts
 message
+inbox
+inbox-read
+presence
+watch
 handoff request
 handoff respond
 handoff list

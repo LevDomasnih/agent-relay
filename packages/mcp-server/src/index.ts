@@ -8,6 +8,7 @@ import {
   type AgentTool,
   type HandoffStatus,
   type LockMode,
+  type MessageKind,
   type TaskStatus,
 } from "@agent-coordinator/core";
 import { z } from "zod";
@@ -33,6 +34,16 @@ const handoffResponseStatusSchema = z.enum([
   "denied",
   "cancelled",
 ]);
+const messageKindSchema = z
+  .enum([
+    "note",
+    "question",
+    "blocker",
+    "ready_for_review",
+    "handoff",
+    "decision",
+  ])
+  .optional();
 
 server.registerTool(
   "init_project",
@@ -271,12 +282,18 @@ server.registerTool(
   "post_message",
   {
     title: "Post Message",
-    description: "Post a task comment or directed thread message.",
+    description: "Post an agent, task, or thread message.",
     inputSchema: z.object({
+      kind: messageKindSchema,
       fromAgent: z.string(),
       fromAgentInstanceId: z.string().optional(),
       fromThreadId: z.string().optional(),
+      toAgent: z.string().optional(),
+      toAgentInstanceId: z.string().optional(),
       toThreadId: z.string().optional(),
+      broadcast: z.boolean().optional(),
+      replyToMessageId: z.string().optional(),
+      mentions: z.array(z.string()).optional(),
       taskId: z.string().optional(),
       text: z.string(),
       root: z.string().optional(),
@@ -287,7 +304,101 @@ server.registerTool(
     const { root: _root, ...messageInput } = input;
     return jsonResult({
       ok: true,
-      message: await coordinator.postMessage(messageInput),
+      message: await coordinator.postMessage({
+        ...messageInput,
+        kind: messageInput.kind as MessageKind | undefined,
+      }),
+    });
+  },
+);
+
+server.registerTool(
+  "inbox",
+  {
+    title: "Inbox",
+    description: "List unread or all messages for an agent.",
+    inputSchema: z.object({
+      agent: z.string().optional(),
+      agentInstanceId: z.string().optional(),
+      threadId: z.string().optional(),
+      includeRead: z.boolean().optional(),
+      limit: z.number().int().positive().optional(),
+      root: z.string().optional(),
+    }),
+  },
+  async ({ agent, agentInstanceId, threadId, includeRead, limit, root }) => {
+    const coordinator = await loadCoordinator(root);
+    return jsonResult({
+      ok: true,
+      inbox: await coordinator.inbox({
+        agent,
+        agentInstanceId,
+        threadId,
+        includeRead,
+        limit,
+      }),
+    });
+  },
+);
+
+server.registerTool(
+  "mark_inbox_read",
+  {
+    title: "Mark Inbox Read",
+    description: "Mark inbox messages as read for an agent instance.",
+    inputSchema: z.object({
+      agentInstanceId: z.string(),
+      messageIds: z.array(z.string()).optional(),
+      root: z.string().optional(),
+    }),
+  },
+  async ({ agentInstanceId, messageIds, root }) => {
+    const coordinator = await loadCoordinator(root);
+    return jsonResult({
+      ok: true,
+      receipts: await coordinator.markInboxRead({
+        agentInstanceId,
+        messageIds,
+      }),
+    });
+  },
+);
+
+server.registerTool(
+  "presence",
+  {
+    title: "Presence",
+    description: "List known agent instances and active claims.",
+    inputSchema: z.object({
+      activeWithinMinutes: z.number().positive().optional(),
+      root: z.string().optional(),
+    }),
+  },
+  async ({ activeWithinMinutes, root }) => {
+    const coordinator = await loadCoordinator(root);
+    return jsonResult({
+      ok: true,
+      agents: await coordinator.presence(activeWithinMinutes),
+    });
+  },
+);
+
+server.registerTool(
+  "watch",
+  {
+    title: "Watch",
+    description: "Return recent coordinator events, messages, and handoffs.",
+    inputSchema: z.object({
+      since: z.string().optional(),
+      limit: z.number().int().positive().optional(),
+      root: z.string().optional(),
+    }),
+  },
+  async ({ since, limit, root }) => {
+    const coordinator = await loadCoordinator(root);
+    return jsonResult({
+      ok: true,
+      ...(await coordinator.watch({ since, limit })),
     });
   },
 );

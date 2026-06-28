@@ -84,12 +84,27 @@ export type Event = {
 export type Message = {
   id: string;
   at: string;
+  kind: MessageKind;
   fromAgent: string;
   fromAgentInstanceId?: string;
   fromThreadId?: string;
+  toAgent?: string;
+  toAgentInstanceId?: string;
   toThreadId?: string;
+  broadcast?: boolean;
+  replyToMessageId?: string;
+  mentions: string[];
   taskId?: string;
   text: string;
+};
+
+export type MessageKind =
+  "note" | "question" | "blocker" | "ready_for_review" | "handoff" | "decision";
+
+export type MessageReceipt = {
+  messageId: string;
+  agentInstanceId: string;
+  readAt: string;
 };
 
 export type HandoffStatus =
@@ -133,6 +148,7 @@ export type CoordinatorState = {
   tasks: Task[];
   agents: AgentInstance[];
   handoffs: HandoffRequest[];
+  messageReceipts: MessageReceipt[];
   gitIdentityBackup?: GitIdentityBackup;
 };
 
@@ -257,6 +273,57 @@ export type RequestHandoffInput = {
   reason: string;
 };
 
+export type PostMessageInput = {
+  kind?: MessageKind;
+  fromAgent: string;
+  fromAgentInstanceId?: string;
+  fromThreadId?: string;
+  toAgent?: string;
+  toAgentInstanceId?: string;
+  toThreadId?: string;
+  broadcast?: boolean;
+  replyToMessageId?: string;
+  mentions?: string[];
+  taskId?: string;
+  text: string;
+};
+
+export type InboxInput = {
+  agent?: string;
+  agentInstanceId?: string;
+  threadId?: string;
+  includeRead?: boolean;
+  limit?: number;
+};
+
+export type InboxItem = {
+  message: Message;
+  read: boolean;
+  directed: boolean;
+};
+
+export type MarkReadInput = {
+  agentInstanceId: string;
+  messageIds?: string[];
+};
+
+export type AgentPresence = AgentInstance & {
+  active: boolean;
+  activeTaskIds: string[];
+  activeTaskDisplayIds: string[];
+};
+
+export type WatchInput = {
+  since?: string;
+  limit?: number;
+};
+
+export type WatchResult = {
+  events: Event[];
+  messages: Message[];
+  handoffs: HandoffRequest[];
+};
+
 export type RespondHandoffInput = {
   handoffId: string;
   status: Exclude<HandoffStatus, "requested">;
@@ -314,7 +381,9 @@ export class JsonFileStorage implements Storage {
   }
 
   async readMessages(): Promise<Message[]> {
-    return readJsonl<Message>(this.paths.messages);
+    return (await readJsonl<Partial<Message>>(this.paths.messages)).map(
+      normalizeMessage,
+    );
   }
 }
 
@@ -347,6 +416,7 @@ export class AgentCoordinator {
         tasks: [],
         agents: [],
         handoffs: [],
+        messageReceipts: [],
       });
     }
     await ensureJsonl(this.paths.events);
@@ -641,23 +711,142 @@ export class AgentCoordinator {
     );
   }
 
-  async postMessage(input: Omit<Message, "id" | "at">): Promise<Message> {
-    await this.ensureInitialized();
-    const message: Message = { id: randomId("msg"), at: timestamp(), ...input };
-    await this.storage.appendMessage(message);
-    const state = await this.readState();
-    const task = input.taskId ? getTask(state, input.taskId) : undefined;
-    await this.appendEvent({
-      taskId: task?.id ?? input.taskId,
-      taskDisplayId: task?.displayId,
-      agent: input.fromAgent,
-      agentInstanceId: input.fromAgentInstanceId,
-      threadId: input.fromThreadId,
-      type: "message.posted",
-      message: input.text,
-      data: { toThreadId: input.toThreadId },
+  async postMessage(input: PostMessageInput): Promise<Message> {
+    return this.mutate("post message", async (state) => {
+      const task = input.taskId ? getTask(state, input.taskId) : undefined;
+      const now = timestamp();
+      if (input.fromAgent) {
+        ensureAgentInstance(state, {
+          id: input.fromAgentInstanceId,
+          name: input.fromAgent,
+          threadId: input.fromThreadId,
+          now,
+        });
+      }
+      const message: Message = {
+        id: randomId("msg"),
+        at: now,
+        kind: input.kind ?? "note",
+        fromAgent: input.fromAgent,
+        fromAgentInstanceId: input.fromAgentInstanceId,
+        fromThreadId: input.fromThreadId,
+        toAgent: input.toAgent,
+        toAgentInstanceId: input.toAgentInstanceId,
+        toThreadId: input.toThreadId,
+        broadcast: input.broadcast,
+        replyToMessageId: input.replyToMessageId,
+        mentions: input.mentions ?? [],
+        taskId: task?.id ?? input.taskId,
+        text: input.text,
+      };
+      await this.storage.appendMessage(message);
+      await this.appendEvent({
+        taskId: task?.id ?? input.taskId,
+        taskDisplayId: task?.displayId,
+        agent: input.fromAgent,
+        agentInstanceId: input.fromAgentInstanceId,
+        threadId: input.fromThreadId,
+        type: "message.posted",
+        message: input.text,
+        data: {
+          kind: message.kind,
+          toAgent: input.toAgent,
+          toAgentInstanceId: input.toAgentInstanceId,
+          toThreadId: input.toThreadId,
+          broadcast: input.broadcast,
+          mentions: message.mentions,
+        },
+      });
+      return message;
     });
-    return message;
+  }
+
+  async inbox(input: InboxInput): Promise<InboxItem[]> {
+    await this.ensureInitialized();
+    const state = await this.storage.readState();
+    const messages = await this.storage.readMessages();
+    const receiptIds = new Set(
+      state.messageReceipts
+        .filter((receipt) => receipt.agentInstanceId === input.agentInstanceId)
+        .map((receipt) => receipt.messageId),
+    );
+    return messages
+      .filter((message) => messageTargetsAgent(message, input))
+      .map((message) => ({
+        message,
+        read: input.agentInstanceId ? receiptIds.has(message.id) : false,
+        directed: messageDirectedToAgent(message, input),
+      }))
+      .filter((item) => input.includeRead || !item.read)
+      .slice(-(input.limit ?? 50))
+      .reverse();
+  }
+
+  async markInboxRead(input: MarkReadInput): Promise<MessageReceipt[]> {
+    return this.mutate("mark inbox read", async (state) => {
+      const now = timestamp();
+      const messages = await this.storage.readMessages();
+      const messageIds =
+        input.messageIds ?? messages.map((message) => message.id);
+      const existing = new Set(
+        state.messageReceipts
+          .filter(
+            (receipt) => receipt.agentInstanceId === input.agentInstanceId,
+          )
+          .map((receipt) => receipt.messageId),
+      );
+      const added: MessageReceipt[] = [];
+      for (const messageId of messageIds) {
+        if (existing.has(messageId)) continue;
+        const receipt: MessageReceipt = {
+          messageId,
+          agentInstanceId: input.agentInstanceId,
+          readAt: now,
+        };
+        state.messageReceipts.push(receipt);
+        added.push(receipt);
+      }
+      await this.appendEvent({
+        agentInstanceId: input.agentInstanceId,
+        type: "inbox.read",
+        message: `Marked ${added.length} message(s) read`,
+        data: { messageIds: added.map((receipt) => receipt.messageId) },
+      });
+      return added;
+    });
+  }
+
+  async presence(activeWithinMinutes = 15): Promise<AgentPresence[]> {
+    const state = await this.readState();
+    const cutoff = Date.now() - activeWithinMinutes * 60_000;
+    return state.agents.map((agent) => {
+      const activeTasks = state.tasks.filter(
+        (task) => task.agentInstanceId === agent.id && isActive(task),
+      );
+      return {
+        ...agent,
+        active: new Date(agent.lastSeenAt).getTime() >= cutoff,
+        activeTaskIds: activeTasks.map((task) => task.id),
+        activeTaskDisplayIds: activeTasks.map((task) => task.displayId),
+      };
+    });
+  }
+
+  async watch(input: WatchInput = {}): Promise<WatchResult> {
+    await this.ensureInitialized();
+    const since = input.since ? new Date(input.since) : undefined;
+    const limit = input.limit ?? 50;
+    const state = await this.storage.readState();
+    const events = (await this.storage.readEvents())
+      .filter((event) => !since || new Date(event.at) > since)
+      .slice(-limit);
+    const messages = (await this.storage.readMessages())
+      .filter((message) => !since || new Date(message.at) > since)
+      .slice(-limit);
+    const handoffs = state.handoffs
+      .filter((handoff) => !since || new Date(handoff.updatedAt) > since)
+      .slice(-limit);
+    return { events, messages, handoffs };
   }
 
   async requestHandoff(input: RequestHandoffInput): Promise<HandoffRequest> {
@@ -702,10 +891,16 @@ export class AgentCoordinator {
       await this.storage.appendMessage({
         id: randomId("msg"),
         at: now,
+        kind: "handoff",
         fromAgent: input.agent,
         fromAgentInstanceId: input.agentInstanceId,
         fromThreadId: input.threadId,
+        toAgent: owner?.agent,
+        toAgentInstanceId: owner?.agentInstanceId,
         toThreadId: owner?.threadId,
+        mentions: [owner?.agent, owner?.agentInstanceId].filter(
+          Boolean,
+        ) as string[],
         taskId: task.id,
         text: `Handoff requested for ${handoff.filesGlobs.join(", ")}: ${input.reason}`,
       });
@@ -741,11 +936,18 @@ export class AgentCoordinator {
       await this.storage.appendMessage({
         id: randomId("msg"),
         at: now,
+        kind: "handoff",
         fromAgent: input.agent ?? handoff.ownerAgent ?? "unknown",
         fromAgentInstanceId:
           input.agentInstanceId ?? handoff.ownerAgentInstanceId,
         fromThreadId: input.threadId ?? handoff.ownerThreadId,
+        toAgent: handoff.requestedByAgent,
+        toAgentInstanceId: handoff.requestedByAgentInstanceId,
         toThreadId: handoff.requestedByThreadId,
+        mentions: [
+          handoff.requestedByAgent,
+          handoff.requestedByAgentInstanceId,
+        ].filter(Boolean) as string[],
         taskId: handoff.taskId,
         text: `Handoff ${input.status}: ${input.response ?? ""}`.trim(),
       });
@@ -811,6 +1013,7 @@ export class AgentCoordinator {
           tasks: [],
           agents: [],
           handoffs: [],
+          messageReceipts: [],
         } satisfies CoordinatorState);
     const snapshot = renderSnapshot(config, state);
     const snapshotPath = path.join(this.paths.root, config.snapshotPath);
@@ -1164,7 +1367,27 @@ function normalizeState(input: Partial<CoordinatorState>): CoordinatorState {
     tasks,
     agents: input.agents ?? [],
     handoffs: input.handoffs ?? [],
+    messageReceipts: input.messageReceipts ?? [],
     gitIdentityBackup: input.gitIdentityBackup,
+  };
+}
+
+function normalizeMessage(input: Partial<Message>): Message {
+  return {
+    id: input.id ?? randomId("msg"),
+    at: input.at ?? timestamp(),
+    kind: input.kind ?? "note",
+    fromAgent: input.fromAgent ?? "unknown",
+    fromAgentInstanceId: input.fromAgentInstanceId,
+    fromThreadId: input.fromThreadId,
+    toAgent: input.toAgent,
+    toAgentInstanceId: input.toAgentInstanceId,
+    toThreadId: input.toThreadId,
+    broadcast: input.broadcast,
+    replyToMessageId: input.replyToMessageId,
+    mentions: input.mentions ?? [],
+    taskId: input.taskId,
+    text: input.text ?? "",
   };
 }
 
@@ -1404,6 +1627,34 @@ function taskMatchesAgent(task: Task, input: VerifyWorktreeInput): boolean {
     ) ||
     Boolean(input.agent && task.agent === input.agent) ||
     Boolean(input.threadId && task.threadId === input.threadId)
+  );
+}
+
+function messageTargetsAgent(message: Message, input: InboxInput): boolean {
+  if (
+    message.fromAgentInstanceId &&
+    message.fromAgentInstanceId === input.agentInstanceId
+  ) {
+    return false;
+  }
+  if (message.broadcast) return true;
+  if (messageDirectedToAgent(message, input)) return true;
+  return message.mentions.some(
+    (mention) =>
+      Boolean(input.agent && mention === input.agent) ||
+      Boolean(input.agentInstanceId && mention === input.agentInstanceId) ||
+      Boolean(input.threadId && mention === input.threadId),
+  );
+}
+
+function messageDirectedToAgent(message: Message, input: InboxInput): boolean {
+  return (
+    Boolean(
+      input.agentInstanceId &&
+      message.toAgentInstanceId === input.agentInstanceId,
+    ) ||
+    Boolean(input.agent && message.toAgent === input.agent) ||
+    Boolean(input.threadId && message.toThreadId === input.threadId)
   );
 }
 

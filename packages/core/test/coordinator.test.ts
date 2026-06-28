@@ -271,6 +271,80 @@ test("handoff request and response are stored with messages and events", async (
   );
 });
 
+test("agent inbox supports directed messages and read receipts", async () => {
+  const root = await tempGitRepo();
+  const coordinator = new AgentCoordinator(root);
+  await coordinator.init("sample");
+
+  const message = await coordinator.postMessage({
+    kind: "question",
+    fromAgent: "agent-a",
+    fromAgentInstanceId: "agent_a",
+    toAgent: "agent-b",
+    toAgentInstanceId: "agent_b",
+    mentions: ["agent-b"],
+    text: "Can you take package.json after this commit?",
+  });
+  await coordinator.postMessage({
+    fromAgent: "agent-c",
+    fromAgentInstanceId: "agent_c",
+    broadcast: true,
+    text: "Heads up: release branch is frozen.",
+  });
+
+  const unread = await coordinator.inbox({ agentInstanceId: "agent_b" });
+  const receipts = await coordinator.markInboxRead({
+    agentInstanceId: "agent_b",
+    messageIds: [message.id],
+  });
+  const afterRead = await coordinator.inbox({ agentInstanceId: "agent_b" });
+  const all = await coordinator.inbox({
+    agentInstanceId: "agent_b",
+    includeRead: true,
+  });
+
+  assert.equal(unread.length, 2);
+  assert.equal(unread[0]?.message.broadcast, true);
+  assert.equal(unread[1]?.message.id, message.id);
+  assert.equal(receipts.length, 1);
+  assert.equal(afterRead.length, 1);
+  assert.equal(all.length, 2);
+  assert.equal(all.find((item) => item.message.id === message.id)?.read, true);
+});
+
+test("presence and watch expose active agents and recent streams", async () => {
+  const root = await tempGitRepo();
+  const coordinator = new AgentCoordinator(root);
+  await coordinator.init("sample");
+  await coordinator.createTask({
+    displayId: "AGT-20260628-001",
+    title: "Presence task",
+    scope: "code",
+    filesGlobs: ["src/**"],
+  });
+  await coordinator.claimTask({
+    taskId: "AGT-20260628-001",
+    agent: "agent-a",
+    agentInstanceId: "agent_a",
+    threadId: "thread_a",
+  });
+  await coordinator.postMessage({
+    fromAgent: "agent-a",
+    fromAgentInstanceId: "agent_a",
+    broadcast: true,
+    text: "I am active.",
+  });
+
+  const presence = await coordinator.presence(15);
+  const watched = await coordinator.watch({ limit: 10 });
+
+  assert.equal(presence[0]?.id, "agent_a");
+  assert.equal(presence[0]?.active, true);
+  assert.deepEqual(presence[0]?.activeTaskDisplayIds, ["AGT-20260628-001"]);
+  assert.ok(watched.events.some((event) => event.type === "task.claimed"));
+  assert.ok(watched.messages.some((item) => item.text === "I am active."));
+});
+
 test("explain can resolve task from commit trailers", async () => {
   const root = await tempGitRepo();
   const coordinator = new AgentCoordinator(root);

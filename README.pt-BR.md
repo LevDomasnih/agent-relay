@@ -158,6 +158,30 @@ agent-coordinator handoff respond \
 
 Status: `grant_after_commit`, `handoff_now`, `denied`, `cancelled`.
 
+## Inbox e Presence
+
+Agents podem se comunicar por inbox:
+
+```bash
+agent-coordinator message \
+  --from-agent frontend-codex \
+  --from-agent-instance agent_123 \
+  --to-agent-instance agent_456 \
+  --kind question \
+  --text "Can you take package.json after this commit?"
+
+agent-coordinator inbox --agent-instance agent_456
+agent-coordinator inbox-read --agent-instance agent_456 --messages msg_...
+```
+
+Broadcast, mentions, presence e watch também são suportados:
+
+```bash
+agent-coordinator message --from-agent release-codex --broadcast --kind blocker --text "Release branch is frozen."
+agent-coordinator presence
+agent-coordinator watch --limit 20
+```
+
 ## Verificações e Git Hooks
 
 ```bash
@@ -227,7 +251,7 @@ explicitamente para o server não gravar state no diretório errado.
 
 ```text
 init, status, create, claim, update, heartbeat, release
-mine, conflicts, message
+mine, conflicts, message, inbox, inbox-read, presence, watch
 handoff request, handoff respond, handoff list
 snapshot, explain, doctor
 git-identity, git-identity-reset

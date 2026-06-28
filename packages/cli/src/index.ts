@@ -4,6 +4,7 @@ import {
   AgentCoordinator,
   type HandoffStatus,
   type LockMode,
+  type MessageKind,
   TASK_STATUSES,
   findProjectRoot,
   type TaskStatus,
@@ -280,31 +281,123 @@ program
 
 program
   .command("message")
-  .description("Post a task or thread message.")
+  .description("Post an agent, task, or thread message.")
   .requiredOption("--from-agent <name>", "Sender agent")
   .requiredOption("--text <text>", "Message text")
+  .option(
+    "--kind <kind>",
+    "note, question, blocker, ready_for_review, handoff, decision",
+  )
+  .option("--from-agent-instance <id>", "Sender agent instance id")
   .option("--from-thread <id>", "Sender thread id")
+  .option("--to-agent <name>", "Recipient agent name")
+  .option("--to-agent-instance <id>", "Recipient agent instance id")
   .option("--to-thread <id>", "Recipient thread id")
+  .option("--broadcast", "Send to every agent inbox")
+  .option("--reply-to <id>", "Message id this replies to")
+  .option("--mentions <items>", "Comma-separated agent/thread mentions")
   .option("--task <id>", "Task id")
   .action(
     async (options: {
       fromAgent: string;
       text: string;
+      kind?: string;
+      fromAgentInstance?: string;
       fromThread?: string;
+      toAgent?: string;
+      toAgentInstance?: string;
       toThread?: string;
+      broadcast?: boolean;
+      replyTo?: string;
+      mentions?: string;
       task?: string;
     }) => {
       const coordinator = await loadCoordinator();
       const message = await coordinator.postMessage({
+        kind: parseMessageKind(options.kind),
         fromAgent: options.fromAgent,
+        fromAgentInstanceId: options.fromAgentInstance,
         fromThreadId: options.fromThread,
+        toAgent: options.toAgent,
+        toAgentInstanceId: options.toAgentInstance,
         toThreadId: options.toThread,
+        broadcast: options.broadcast,
+        replyToMessageId: options.replyTo,
+        mentions: splitList(options.mentions),
         taskId: options.task,
         text: options.text,
       });
       console.log(JSON.stringify({ ok: true, message }, null, 2));
     },
   );
+
+program
+  .command("inbox")
+  .description("List unread or all messages for an agent.")
+  .option("--agent <name>", "Agent name")
+  .option("--agent-instance <id>", "Stable agent instance id")
+  .option("--thread <id>", "Thread id")
+  .option("--include-read", "Include messages already marked read")
+  .option("--limit <n>", "Maximum number of messages", "50")
+  .action(
+    async (options: {
+      agent?: string;
+      agentInstance?: string;
+      thread?: string;
+      includeRead?: boolean;
+      limit: string;
+    }) => {
+      const coordinator = await loadCoordinator();
+      const inbox = await coordinator.inbox({
+        agent: options.agent,
+        agentInstanceId: options.agentInstance,
+        threadId: options.thread,
+        includeRead: options.includeRead,
+        limit: Number(options.limit),
+      });
+      console.log(JSON.stringify({ ok: true, inbox }, null, 2));
+    },
+  );
+
+program
+  .command("inbox-read")
+  .description("Mark inbox messages as read for an agent instance.")
+  .requiredOption("--agent-instance <id>", "Stable agent instance id")
+  .option("--messages <ids>", "Comma-separated message ids; defaults to all")
+  .action(async (options: { agentInstance: string; messages?: string }) => {
+    const coordinator = await loadCoordinator();
+    const receipts = await coordinator.markInboxRead({
+      agentInstanceId: options.agentInstance,
+      messageIds: options.messages ? splitList(options.messages) : undefined,
+    });
+    console.log(JSON.stringify({ ok: true, receipts }, null, 2));
+  });
+
+program
+  .command("presence")
+  .description("List known agent instances and active claims.")
+  .option("--active-within-minutes <n>", "Presence active window", "15")
+  .action(async (options: { activeWithinMinutes: string }) => {
+    const coordinator = await loadCoordinator();
+    const agents = await coordinator.presence(
+      Number(options.activeWithinMinutes),
+    );
+    console.log(JSON.stringify({ ok: true, agents }, null, 2));
+  });
+
+program
+  .command("watch")
+  .description("Show recent coordinator events, messages, and handoffs.")
+  .option("--since <iso>", "Only items after this timestamp")
+  .option("--limit <n>", "Maximum items per stream", "50")
+  .action(async (options: { since?: string; limit: string }) => {
+    const coordinator = await loadCoordinator();
+    const result = await coordinator.watch({
+      since: options.since,
+      limit: Number(options.limit),
+    });
+    console.log(JSON.stringify({ ok: true, ...result }, null, 2));
+  });
 
 const handoff = program
   .command("handoff")
@@ -571,6 +664,23 @@ function parseLockMode(mode?: string): LockMode | undefined {
   }
   throw new Error(
     `Invalid lock mode "${mode}". Expected one of: exclusive, shared-read, shared-docs, advisory`,
+  );
+}
+
+function parseMessageKind(kind?: string): MessageKind | undefined {
+  if (!kind) return undefined;
+  if (
+    kind === "note" ||
+    kind === "question" ||
+    kind === "blocker" ||
+    kind === "ready_for_review" ||
+    kind === "handoff" ||
+    kind === "decision"
+  ) {
+    return kind;
+  }
+  throw new Error(
+    `Invalid message kind "${kind}". Expected one of: note, question, blocker, ready_for_review, handoff, decision`,
   );
 }
 
