@@ -47,7 +47,14 @@ State 保存在项目内：
 
 ## 状态
 
-这是 v0.1-ready 版本。CLI、core package、MCP server、state migrations、CI checks 和 package dry-runs 都已实现并测试。npm packages 尚未发布。
+Agent Relay v0.1.3 已发布到 npm。CLI、core package、MCP server、state migrations、CI checks、release dry-runs 和 npm smoke test 都已实现并验证。
+
+通过 `npx` 运行 CLI：
+
+```bash
+npx @levdomasnih/agent-relay-cli init
+npx @levdomasnih/agent-relay-cli doctor
+```
 
 从源码使用：
 
@@ -57,13 +64,6 @@ cd agent-relay
 pnpm install
 pnpm run build
 pnpm --filter @levdomasnih/agent-relay-cli agent-relay --help
-```
-
-首次 npm release 后的预期用法：
-
-```bash
-npx @levdomasnih/agent-relay-cli init
-npx @levdomasnih/agent-relay-cli doctor
 ```
 
 ## 快速开始

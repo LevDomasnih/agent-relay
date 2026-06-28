@@ -1,7 +1,7 @@
 # Agent Relay
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Status](https://img.shields.io/badge/status-v0.1_ready-16a34a.svg)](#status)
+[![npm](https://img.shields.io/badge/npm-v0.1.3-cb3837.svg)](https://www.npmjs.com/package/@levdomasnih/agent-relay-cli)
 
 [English](README.md) · [Русский](README.ru.md) · [简体中文](README.zh-CN.md) ·
 [Deutsch](README.de.md) · [Español](README.es.md) ·
@@ -51,11 +51,18 @@ No daemon. No database server. No `/tmp` state.
 
 ## Status
 
-Agent Relay is v0.1-ready. The CLI, core package, MCP server, state
-migrations, CI checks, and package dry-runs are implemented and tested. The
-packages have not been released to npm yet.
+Agent Relay v0.1.3 is published to npm. The CLI, core package, MCP server,
+state migrations, CI checks, release dry-runs, and npm smoke test are
+implemented and verified.
 
-Use it from source today:
+Install the CLI with `npx`:
+
+```bash
+npx @levdomasnih/agent-relay-cli init
+npx @levdomasnih/agent-relay-cli doctor
+```
+
+Or run it from source:
 
 ```bash
 git clone https://github.com/LevDomasnih/agent-relay.git
@@ -63,13 +70,6 @@ cd agent-relay
 pnpm install
 pnpm run build
 pnpm --filter @levdomasnih/agent-relay-cli agent-relay --help
-```
-
-Planned npm usage after the first release:
-
-```bash
-npx @levdomasnih/agent-relay-cli init
-npx @levdomasnih/agent-relay-cli doctor
 ```
 
 ## Quick Start

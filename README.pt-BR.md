@@ -48,7 +48,14 @@ Sem daemon. Sem database server. Sem state em `/tmp`.
 
 ## Status
 
-Esta é uma versão v0.1-ready. CLI, core package, MCP server, state migrations, CI checks e package dry-runs estão implementados e testados. Os packages npm ainda não foram publicados.
+Agent Relay v0.1.3 está publicado no npm. CLI, core package, MCP server, state migrations, CI checks, release dry-runs e npm smoke test estão implementados e verificados.
+
+Executar a CLI com `npx`:
+
+```bash
+npx @levdomasnih/agent-relay-cli init
+npx @levdomasnih/agent-relay-cli doctor
+```
 
 Usar a partir do source:
 
@@ -58,13 +65,6 @@ cd agent-relay
 pnpm install
 pnpm run build
 pnpm --filter @levdomasnih/agent-relay-cli agent-relay --help
-```
-
-Uso planejado depois do primeiro npm release:
-
-```bash
-npx @levdomasnih/agent-relay-cli init
-npx @levdomasnih/agent-relay-cli doctor
 ```
 
 ## Quick Start
