@@ -217,16 +217,15 @@ git push -u origin main
 Правильный следующий шаг - выделить `Storage` interface и оставить текущую
 реализацию как `JsonFileStorage`.
 
-## Риски текущей версии
+## Актуальные оставшиеся риски
 
 - conflict detection пока простая: prefix/glob heuristic;
 - lock file есть, но stale lock recovery еще не доделан;
-- MCP server проверен TypeScript-ом, но не прогнан через реальный MCP client;
-- нет автоматических тестов;
-- нет команды `doctor`;
-- нет команды `explain`;
-- нет npm-публикации;
-- GitHub repo еще надо создать и запушить.
+- MCP server теперь прогоняется через реальный MCP client smoke test;
+- есть автоматические unit tests, CLI smoke и MCP smoke, но нет отдельной
+  матрицы интеграционных сценариев по реальным MCP clients;
+- `doctor` и `explain` реализованы;
+- npm-публикация ожидает финальный public package scope или rename.
 
 ## Как не наступить на известные проблемы
 

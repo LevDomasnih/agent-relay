@@ -48,7 +48,9 @@ Kein daemon. Kein database server. Kein state in `/tmp`.
 
 ## Status
 
-Agent Relay v0.1.4 ist auf npm veröffentlicht. CLI, core package, MCP server, state migrations, CI checks, release dry-runs und npm smoke test sind implementiert und verifiziert.
+Agent Relay ist aus dem Source heraus bereit für das erste öffentliche Release. CLI, core package, MCP server, state migrations, CI checks, package dry-runs, CLI smoke test und ein echter MCP client smoke test sind implementiert und verifiziert.
+
+npm publishing wartet noch auf den finalen öffentlichen package scope oder ein rename.
 
 CLI mit `npx` ausführen:
 

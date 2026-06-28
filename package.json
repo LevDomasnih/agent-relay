@@ -22,10 +22,11 @@
     "check": "tsc -b --pretty false packages/core packages/cli packages/mcp-server",
     "test": "node --test --import tsx packages/core/test/*.test.ts",
     "smoke:cli": "node scripts/smoke-cli.mjs",
+    "smoke:mcp": "pnpm --filter @agent-relay/mcp-server smoke",
     "format": "prettier --check .",
     "format:write": "prettier --write .",
     "pack:dry-run": "npm pack --dry-run --json --workspace @agent-relay/core --workspace @agent-relay/cli --workspace @agent-relay/mcp-server",
-    "release:check": "pnpm run format && pnpm run check && pnpm run test && pnpm run build && pnpm run smoke:cli && pnpm run pack:dry-run",
+    "release:check": "pnpm run format && pnpm run check && pnpm run test && pnpm run build && pnpm run smoke:cli && pnpm run smoke:mcp && pnpm run pack:dry-run",
     "release:bump": "node scripts/bump-version.mjs"
   },
   "devDependencies": {

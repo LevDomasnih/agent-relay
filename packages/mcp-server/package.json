@@ -37,7 +37,8 @@
   },
   "scripts": {
     "build": "tsc -b",
-    "check": "tsc -b --pretty false"
+    "check": "tsc -b --pretty false",
+    "smoke": "node scripts/smoke-mcp.mjs"
   },
   "dependencies": {
     "@agent-relay/core": "0.1.5",

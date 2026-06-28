@@ -48,7 +48,9 @@ State живет рядом с проектом:
 
 ## Статус
 
-Agent Relay v0.1.4 опубликован в npm. CLI, core package, MCP server, state migrations, CI checks, release dry-runs и npm smoke test реализованы и проверены.
+Agent Relay готов к первому публичному release из исходников. CLI, core package, MCP server, state migrations, CI checks, package dry-runs, CLI smoke test и реальный MCP client smoke test реализованы и проверены.
+
+npm publishing пока ожидает финального публичного package scope или rename.
 
 Установка CLI через `npx`:
 

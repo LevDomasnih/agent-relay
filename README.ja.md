@@ -50,7 +50,9 @@ Daemon なし。Database server なし。`/tmp` state なし。
 
 ## Status
 
-Agent Relay v0.1.4 は npm に公開済みです。CLI、core package、MCP server、state migrations、CI checks、release dry-runs、npm smoke test は実装済みで検証済みです。
+Agent Relay は source から最初の public release を出せる状態です。CLI、core package、MCP server、state migrations、CI checks、package dry-runs、CLI smoke test、実際の MCP client smoke test は実装済みで検証済みです。
+
+npm publishing は最終的な public package scope または rename が決まるまで pending です。
 
 `npx` で CLI を実行:
 

@@ -1,7 +1,7 @@
 # Agent Relay
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![npm](https://img.shields.io/badge/npm-v0.1.4-cb3837.svg)](https://www.npmjs.com/package/@agent-relay/cli)
+[![CI](https://github.com/LevDomasnih/agent-relay/actions/workflows/agent-relay.yml/badge.svg)](https://github.com/LevDomasnih/agent-relay/actions/workflows/agent-relay.yml)
 
 [English](README.md) · [Русский](README.ru.md) · [简体中文](README.zh-CN.md) ·
 [Deutsch](README.de.md) · [Español](README.es.md) ·
@@ -51,9 +51,12 @@ No daemon. No database server. No `/tmp` state.
 
 ## Status
 
-Agent Relay v0.1.4 is published to npm. The CLI, core package, MCP server,
-state migrations, CI checks, release dry-runs, and npm smoke test are
-implemented and verified.
+Agent Relay is source-ready for a first public release. The CLI, core package,
+MCP server, state migrations, CI checks, package dry-runs, CLI smoke test, and
+real MCP client smoke test are implemented and verified.
+
+npm publishing is intentionally pending until the final public package scope is
+available or renamed.
 
 Install the CLI with `npx`:
 
@@ -408,9 +411,18 @@ migrate
 verify-worktree
 verify-commit
 verify-commit-range
+completion
 ```
 
 Run `agent-relay <command> --help` for command-specific options.
+
+Generate shell completions:
+
+```bash
+agent-relay completion bash > ~/.agent-relay-completion.bash
+agent-relay completion zsh > _agent-relay
+agent-relay completion fish > ~/.config/fish/completions/agent-relay.fish
+```
 
 ## Multi-Worktree Caveat
 
@@ -447,14 +459,11 @@ pnpm run test
 pnpm run build
 ```
 
-Smoke-test the built CLI:
+Smoke-test the built CLI and MCP server:
 
 ```bash
-tmp="$(mktemp -d)"
-cd "$tmp"
-git init
-node /path/to/agent-relay/packages/cli/dist/index.js init
-node /path/to/agent-relay/packages/cli/dist/index.js doctor
+pnpm run smoke:cli
+pnpm run smoke:mcp
 ```
 
 Release notes live in [docs/release.md](docs/release.md).
@@ -462,17 +471,24 @@ Release notes live in [docs/release.md](docs/release.md).
 Releases are automated from Conventional Commits on `main`: `feat` creates a
 minor release, `fix`/`perf` create a patch release, and `!` or
 `BREAKING CHANGE:` creates a major release. The workflow bumps versions, commits
-the release, tags it, publishes npm packages, and creates or updates the GitHub
-Release. See [docs/release.md](docs/release.md) for details.
+the release, tags it, and creates or updates the GitHub Release. npm publishing
+is enabled once the public package scope is available and `NPM_TOKEN` is
+configured. See [docs/release.md](docs/release.md) for details.
+
+## First-Version Baseline
+
+Implemented:
+
+- Shared state directory for worktree families.
+- Richer MCP client smoke tests.
+- Generated shell completions.
 
 ## Roadmap
 
-- First npm release.
-- SQLite storage adapter.
-- Shared state directory for worktree families.
+- First npm release after the public package scope is available or renamed.
+- SQLite storage adapter for larger long-lived projects.
 - Remote backend for distributed teams.
-- Richer MCP client smoke tests.
-- Generated shell completions.
+- Hosted sync, auth, and team mode.
 
 ## License
 

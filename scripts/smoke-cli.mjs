@@ -111,6 +111,16 @@ async function main() {
     throw new Error(`doctor failed: ${JSON.stringify(doctor.checks)}`);
   }
 
+  const completion = await run(process.execPath, [cli, "completion", "bash"], {
+    cwd: repo,
+  });
+  if (
+    !completion.includes("_agent_relay_completion") ||
+    !completion.includes("verify-worktree")
+  ) {
+    throw new Error("bash completion output is missing expected commands");
+  }
+
   console.log(
     JSON.stringify({
       ok: true,

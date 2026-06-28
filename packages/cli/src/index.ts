@@ -666,10 +666,13 @@ program
     if (!report.ok) process.exitCode = 1;
   });
 
-program.parseAsync().catch((error: unknown) => {
-  console.error(error instanceof Error ? error.message : String(error));
-  process.exit(1);
-});
+program
+  .command("completion")
+  .description("Generate a shell completion script.")
+  .argument("[shell]", "Shell: bash, zsh, or fish", "bash")
+  .action((shell: string) => {
+    console.log(generateCompletionScript(parseShell(shell)));
+  });
 
 async function loadCoordinator(): Promise<AgentCoordinator> {
   return new AgentCoordinator(await findProjectRoot());
@@ -759,3 +762,70 @@ function parseHandoffStatus(status: string): HandoffStatus {
     `Invalid handoff status "${status}". Expected one of: requested, grant_after_commit, handoff_now, denied, cancelled`,
   );
 }
+
+function parseShell(shell: string): "bash" | "zsh" | "fish" {
+  if (shell === "bash" || shell === "zsh" || shell === "fish") return shell;
+  throw new Error(`Invalid shell "${shell}". Expected one of: bash, zsh, fish`);
+}
+
+const completionCommands = [
+  "init",
+  "status",
+  "create",
+  "claim",
+  "update",
+  "heartbeat",
+  "release",
+  "mine",
+  "conflicts",
+  "message",
+  "inbox",
+  "inbox-read",
+  "presence",
+  "watch",
+  "handoff",
+  "snapshot",
+  "git-identity",
+  "explain",
+  "git-identity-reset",
+  "install-hooks",
+  "doctor",
+  "migrate",
+  "verify-worktree",
+  "verify-commit",
+  "verify-commit-range",
+  "completion",
+];
+
+function generateCompletionScript(shell: "bash" | "zsh" | "fish"): string {
+  const words = completionCommands.join(" ");
+  if (shell === "bash") {
+    return [
+      "_agent_relay_completion() {",
+      "  local cur",
+      '  cur="${COMP_WORDS[COMP_CWORD]}"',
+      `  COMPREPLY=( $(compgen -W "${words}" -- "$cur") )`,
+      "}",
+      "complete -F _agent_relay_completion agent-relay",
+    ].join("\n");
+  }
+  if (shell === "zsh") {
+    return [
+      "#compdef agent-relay",
+      "",
+      "_agent_relay() {",
+      `  _arguments '1:command:(${words})' '*::arg:->args'`,
+      "}",
+      "",
+      '_agent_relay "$@"',
+    ].join("\n");
+  }
+  return completionCommands
+    .map((command) => `complete -c agent-relay -f -a ${command}`)
+    .join("\n");
+}
+
+program.parseAsync().catch((error: unknown) => {
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exit(1);
+});

@@ -47,7 +47,9 @@ State 保存在项目内：
 
 ## 状态
 
-Agent Relay v0.1.4 已发布到 npm。CLI、core package、MCP server、state migrations、CI checks、release dry-runs 和 npm smoke test 都已实现并验证。
+Agent Relay 已经具备从源码发布第一个公开版本的基础。CLI、core package、MCP server、state migrations、CI checks、package dry-runs、CLI smoke test 和真实 MCP client smoke test 都已实现并验证。
+
+npm publishing 暂时等待最终公开 package scope 或 rename。
 
 通过 `npx` 运行 CLI：
 

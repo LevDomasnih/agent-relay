@@ -8,8 +8,9 @@ This project is a pnpm workspace with three publishable packages:
 
 ## Automated Publishing
 
-Releases are prepared from Conventional Commits on `main` and published by
-GitHub Actions:
+Releases are prepared from Conventional Commits on `main` by GitHub Actions.
+npm publishing is enabled once the public package scope is available and npm
+Trusted Publishing or `NPM_TOKEN` is configured:
 
 1. Merge or push conventional commits to `main`.
 2. `.github/workflows/conventional-release.yml` looks at commits since the latest
@@ -20,15 +21,16 @@ GitHub Actions:
 3. If a release is needed, it bumps every package version, commits the change,
    creates the matching `v*` tag, pushes it, and dispatches
    `.github/workflows/release.yml`.
-4. `.github/workflows/release.yml` publishes npm packages and creates or updates
-   the GitHub Release.
+4. `.github/workflows/release.yml` creates or updates the GitHub Release and,
+   when npm publishing is configured, publishes the packages.
 
 For every release it:
 
 1. Checks that the tag version matches all workspace package versions.
 2. Runs `pnpm run release:check`.
-3. Publishes packages to npm in dependency order.
-4. Creates or updates the GitHub Release.
+3. Checks package contents with `npm pack --dry-run`.
+4. Publishes packages to npm in dependency order when npm publishing is enabled.
+5. Creates or updates the GitHub Release.
 
 The workflow supports npm Trusted Publishing via GitHub OIDC. In npm, configure
 each package with this trusted publisher:
@@ -71,8 +73,8 @@ git push origin main
 
 ## Manual Publish Fallback
 
-The release workflow publishes automatically. Use the commands below only as a
-fallback. Publish core first, then CLI and MCP server:
+Use the commands below only as a fallback after npm scope ownership is resolved.
+Publish core first, then CLI and MCP server:
 
 ```bash
 pnpm --filter @agent-relay/core publish --access public --provenance
