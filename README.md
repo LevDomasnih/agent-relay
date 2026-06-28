@@ -1,32 +1,37 @@
 # Agent Coordinator
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Status](https://img.shields.io/badge/status-early_MVP-f59e0b.svg)](#status)
 
-Project-local coordination for parallel AI coding agents.
+Coordinate multiple AI coding agents inside one git repository.
 
 Agent Coordinator gives Codex, Claude Code, Cursor, and other coding agents a
-shared task protocol inside a git repository: atomic-ish claims, scoped locks,
-leases, handoffs, messages, generated Markdown snapshots, verification checks,
-and git attribution.
+small shared protocol for task ownership, scoped locks, handoffs, messages,
+leases, verification checks, generated snapshots, and git attribution.
 
-It is designed for teams running more than one agent in the same codebase, where
-plain Markdown task boards become fragile.
+It is the missing layer between "everyone edits `AGENT_TASKS.md` by hand" and
+"we need a hosted orchestration platform".
 
-## Why Agent Coordinator?
+```text
+agent-coordinator claim --task AGT-20260628-001 --agent frontend-codex --files "src/pages/settings/**"
+agent-coordinator verify-worktree --agent-instance agent_123
+agent-coordinator release --task AGT-20260628-001 --reason "iteration finished"
+```
 
-Markdown task boards are readable, but they are a poor source of truth for
-parallel agents:
+## What It Solves
 
-| Problem                                 | What Agent Coordinator does                                  |
-| --------------------------------------- | ------------------------------------------------------------ |
-| Two agents claim the same work          | Claims fail when active scopes conflict                      |
-| Stale locks stay forever                | Leases expire and takeover requires a reason                 |
-| Shared files get silently merged        | Handoff requests are explicit and logged                     |
-| Thread identity disappears after resume | Agent instances are stable owners; thread ids are metadata   |
-| Commits lose context                    | Commit trailers link changes back to task, agent, and thread |
-| Humans still want a board               | Markdown snapshots are generated from state                  |
+Markdown task boards are great for people and brittle for parallel agents.
 
-State lives in the project, not in `/tmp` and not in a hosted service.
+| Without a coordinator                      | With Agent Coordinator                         |
+| ------------------------------------------ | ---------------------------------------------- |
+| Two agents can grab the same file silently | Overlapping active claims return a conflict    |
+| A dead agent leaves stale ownership behind | Leases expire, and takeover requires a reason  |
+| Shared files become accidental merge zones | Handoff requests are explicit and logged       |
+| Thread identity disappears after resume    | Agent instances remain stable owners           |
+| Commits lose the "who and why"             | Commit trailers link code back to task history |
+| Humans still need a readable board         | Markdown snapshots are generated from state    |
+
+State is project-local and portable:
 
 ```text
 .agent-coordinator/
@@ -38,34 +43,29 @@ State lives in the project, not in `/tmp` and not in a hosted service.
     TASKS.md
 ```
 
+No daemon. No database server. No `/tmp` state.
+
 ## Status
 
-This is an early MVP. The CLI, core library, and MCP server are implemented and
-covered by smoke-level tests. The storage backend is currently JSON +
-append-only JSONL behind a `Storage` interface, with room for SQLite or a remote
-backend later.
+Agent Coordinator is an early MVP. The CLI, core package, and MCP server are
+implemented, tested, and publish-ready, but the packages have not been released
+to npm yet.
 
-## Installation
-
-From this workspace:
+Use it from source today:
 
 ```bash
+git clone https://github.com/LevDomasnih/agent-coordinator.git
+cd agent-coordinator
 pnpm install
 pnpm run build
 pnpm --filter @agent-coordinator/cli agent-coordinator --help
 ```
 
-After npm publish, the intended usage is:
+Planned npm usage after the first release:
 
 ```bash
 npx @agent-coordinator/cli init
 npx @agent-coordinator/cli doctor
-```
-
-MCP server:
-
-```bash
-npx @agent-coordinator/mcp-server
 ```
 
 ## Quick Start
@@ -77,31 +77,40 @@ agent-coordinator init
 agent-coordinator doctor
 ```
 
-Create and claim a task:
+Create a task:
 
 ```bash
 agent-coordinator create \
   --title "Fix settings layout" \
   --scope "settings page" \
   --files "src/pages/settings/**"
+```
 
+Claim it before editing:
+
+```bash
 agent-coordinator claim \
   --task AGT-20260628-001 \
-  --agent visual-codex \
+  --agent frontend-codex \
   --agent-instance agent_123 \
   --thread 019eff77 \
   --files "src/pages/settings/**"
 ```
 
-Work loop:
+Keep the lease alive while working:
 
 ```bash
 agent-coordinator heartbeat --task AGT-20260628-001 --agent-instance agent_123
 agent-coordinator update --task AGT-20260628-001 --status fixing --next "patch layout drift"
+```
+
+Verify before handoff, commit, or final response:
+
+```bash
 agent-coordinator verify-worktree --agent-instance agent_123
 ```
 
-Before handing off or finishing:
+Finish the iteration:
 
 ```bash
 agent-coordinator update --task AGT-20260628-001 --status verifying --next "run focused regression"
@@ -109,50 +118,25 @@ agent-coordinator release --task AGT-20260628-001 --agent-instance agent_123 --r
 agent-coordinator snapshot
 ```
 
-## Core Concepts
+## The Agent Protocol
 
-### Tasks
+Agents do not need to coordinate by editing the same Markdown file. They follow
+a small lifecycle:
 
-Tasks have two identifiers:
+1. Inspect current work with `status`.
+2. Claim a task and file scope before editing.
+3. Heartbeat while working.
+4. Request handoff if a shared file is owned by another active claim.
+5. Verify modified or staged files against the active claim.
+6. Release the lease, record a blocker, or mark the task done.
+7. Leave commit trailers so future agents can explain the change.
 
-- `id`: stable machine id, used as the primary key.
-- `displayId`: human-facing id such as `AGT-20260628-001`.
-
-CLI commands accept either value when it is unambiguous.
-
-### Agent Instances
-
-Agent names are for humans. Agent instances own mutations and locks.
-
-```ts
-type AgentInstance = {
-  id: string;
-  name: string;
-  threadId?: string;
-  tool: "codex" | "claude" | "cursor" | "unknown";
-  startedAt: string;
-  lastSeenAt: string;
-};
-```
-
-Use a stable `--agent-instance` value for the duration of an agent run.
-
-### Lock Modes
-
-| Mode          | Use for                                        | Conflict behavior                |
-| ------------- | ---------------------------------------------- | -------------------------------- |
-| `exclusive`   | Code, package manifests, lockfiles, registries | Blocks overlapping active claims |
-| `shared-docs` | Documentation with explicit coordination       | Can overlap with `shared-docs`   |
-| `shared-read` | Read-oriented shared work                      | Can overlap with `shared-read`   |
-| `advisory`    | Interest tracking                              | Never blocks                     |
-
-Expired leases are visible but not silently ignored. Taking over an expired
-scope requires `--takeover-reason`.
+The generated Markdown snapshot is for humans. The JSON state and JSONL logs are
+the source of truth.
 
 ## Handoffs
 
-When a second agent needs a scope owned by another active claim, it should
-request handoff instead of editing.
+When another agent owns a scope you need, ask for it:
 
 ```bash
 agent-coordinator handoff request \
@@ -163,58 +147,30 @@ agent-coordinator handoff request \
   --reason "need dependency for API client generation"
 ```
 
-The owner can respond:
+The owner responds:
 
 ```bash
 agent-coordinator handoff respond \
   --id handoff_... \
   --status grant_after_commit \
-  --agent visual-codex \
+  --agent frontend-codex \
   --response "will release after current verification"
 ```
 
-Response statuses:
+Supported responses:
 
 - `grant_after_commit`
 - `handoff_now`
 - `denied`
 - `cancelled`
 
-All handoff requests and responses are written to events/messages.
+Every request and response is written to the event log and message log.
 
-## Git Attribution
+## Verification And Git Hooks
 
-Set local git identity for an agent task:
-
-```bash
-agent-coordinator git-identity \
-  --agent visual-codex \
-  --agent-instance agent_123 \
-  --thread 019eff77 \
-  --task AGT-20260628-001
-```
-
-Use commit trailers:
-
-```text
-Agent: visual-codex
-Agent-Instance: agent_123
-Agent-Thread: 019eff77
-Agent-Task: AGT-20260628-001
-```
-
-Restore the previous local identity:
-
-```bash
-agent-coordinator git-identity-reset
-```
-
-Commit trailers are the durable attribution layer. Local git identity is a
-convenience.
-
-## Verification And Hooks
-
-Agent Coordinator includes local enforcement commands:
+MCP makes the protocol easy to call, but MCP alone cannot force agents to use
+it. Agent Coordinator includes local checks for the boring-but-important part:
+"are these files actually claimed by this agent?"
 
 ```bash
 agent-coordinator verify-worktree --agent-instance agent_123
@@ -228,30 +184,56 @@ agent-coordinator install-hooks
 export AGENT_COORDINATOR_INSTANCE=agent_123
 ```
 
-The intended product rule is:
+The design rule:
 
 ```text
 MCP is the protocol. Hooks and checks are the enforcement.
 ```
 
-## Explain History
+## Git Attribution
 
-Explain a task from coordinator events and messages:
+Set local git identity for the current agent:
+
+```bash
+agent-coordinator git-identity \
+  --agent frontend-codex \
+  --agent-instance agent_123 \
+  --thread 019eff77 \
+  --task AGT-20260628-001
+```
+
+Use commit trailers:
+
+```text
+Agent: frontend-codex
+Agent-Instance: agent_123
+Agent-Thread: 019eff77
+Agent-Task: AGT-20260628-001
+```
+
+Restore the previous local identity:
+
+```bash
+agent-coordinator git-identity-reset
+```
+
+Commit trailers are the durable attribution layer. Local git identity is only a
+convenience.
+
+## Explain What Happened
+
+The next agent can reconstruct context from task events, messages, handoffs,
+and commit trailers:
 
 ```bash
 agent-coordinator explain --task AGT-20260628-001
-```
-
-Explain a commit by reading its trailers:
-
-```bash
 agent-coordinator explain --commit 0c464bc
 ```
 
-This helps the next agent answer: who changed this, for which task, under which
-claim, and what handoff or evidence exists?
+Use this before resuming old work, reviewing a suspicious commit, or deciding
+whether a stale lease can be taken over.
 
-## MCP Usage
+## MCP Server
 
 Run the server:
 
@@ -259,7 +241,7 @@ Run the server:
 agent-coordinator-mcp
 ```
 
-Example MCP configuration:
+Example client configuration:
 
 ```json
 {
@@ -273,33 +255,73 @@ Example MCP configuration:
 ```
 
 Most tools accept optional `root`. Prefer passing the repository root from the
-client so the server never writes state in the wrong directory.
+client so the server never writes coordinator state in the wrong directory.
 
-Available MCP tools:
+### MCP Tools
 
-| Tool                 | Purpose                                     |
-| -------------------- | ------------------------------------------- |
-| `init_project`       | Initialize `.agent-coordinator`             |
-| `create_task`        | Create a task                               |
-| `claim_task`         | Claim task scopes                           |
-| `update_task`        | Update status, checks, blockers, next steps |
-| `heartbeat`          | Extend a lease                              |
-| `release_task`       | Release a lease                             |
-| `list_tasks`         | List tasks                                  |
-| `list_my_tasks`      | List tasks by agent, instance, or thread    |
-| `detect_conflicts`   | Detect active scope conflicts               |
-| `request_handoff`    | Request a handoff                           |
-| `respond_handoff`    | Respond to a handoff                        |
-| `list_handoffs`      | List handoff requests                       |
-| `post_message`       | Append a message                            |
-| `export_snapshot`    | Generate `TASKS.md`                         |
-| `explain`            | Explain a task or commit                    |
-| `git_identity`       | Set local git identity                      |
-| `git_identity_reset` | Restore previous git identity               |
-| `doctor`             | Diagnose setup                              |
-| `verify_worktree`    | Check modified files against claims         |
-| `verify_commit`      | Check staged files and trailers             |
-| `install_hooks`      | Install local git hooks                     |
+| Tool                 | Purpose                                         |
+| -------------------- | ----------------------------------------------- |
+| `init_project`       | Initialize `.agent-coordinator`                 |
+| `create_task`        | Create a task                                   |
+| `claim_task`         | Claim task scopes                               |
+| `update_task`        | Update status, checks, blockers, and next steps |
+| `heartbeat`          | Extend a lease                                  |
+| `release_task`       | Release a lease                                 |
+| `list_tasks`         | List tasks                                      |
+| `list_my_tasks`      | List tasks by agent, instance, or thread        |
+| `detect_conflicts`   | Detect active scope conflicts                   |
+| `request_handoff`    | Request a handoff                               |
+| `respond_handoff`    | Respond to a handoff                            |
+| `list_handoffs`      | List handoff requests                           |
+| `post_message`       | Append a message                                |
+| `export_snapshot`    | Generate `TASKS.md`                             |
+| `explain`            | Explain a task or commit                        |
+| `git_identity`       | Set local git identity                          |
+| `git_identity_reset` | Restore previous git identity                   |
+| `doctor`             | Diagnose setup                                  |
+| `verify_worktree`    | Check modified files against claims             |
+| `verify_commit`      | Check staged files and trailers                 |
+| `install_hooks`      | Install local git hooks                         |
+
+## Concepts
+
+### Tasks
+
+Tasks have two identifiers:
+
+- `id`: stable machine id, used as the primary key.
+- `displayId`: human-facing id such as `AGT-20260628-001`.
+
+CLI commands accept either value when it is unambiguous.
+
+### Agent Instances
+
+Agent names are display metadata. Agent instances own mutations and locks.
+
+```ts
+type AgentInstance = {
+  id: string;
+  name: string;
+  threadId?: string;
+  tool: "codex" | "claude" | "cursor" | "unknown";
+  startedAt: string;
+  lastSeenAt: string;
+};
+```
+
+Use a stable `--agent-instance` value for the duration of one agent run.
+
+### Lock Modes
+
+| Mode          | Use for                                        | Conflict behavior                |
+| ------------- | ---------------------------------------------- | -------------------------------- |
+| `exclusive`   | Code, package manifests, lockfiles, registries | Blocks overlapping active claims |
+| `shared-docs` | Documentation with explicit coordination       | Can overlap with `shared-docs`   |
+| `shared-read` | Read-oriented shared work                      | Can overlap with `shared-read`   |
+| `advisory`    | Interest tracking                              | Never blocks                     |
+
+Expired leases are visible but not silently ignored. Taking over an expired
+scope requires `--takeover-reason`.
 
 ## CLI Reference
 
@@ -348,7 +370,7 @@ pnpm run test
 pnpm run build
 ```
 
-Smoke-test the CLI:
+Smoke-test the built CLI:
 
 ```bash
 tmp="$(mktemp -d)"
@@ -362,10 +384,11 @@ Release notes live in [docs/release.md](docs/release.md).
 
 ## Roadmap
 
+- First npm release.
 - SQLite storage adapter.
 - Shared state directory for worktree families.
 - Remote backend for distributed teams.
-- `verify-commit-range` / PR checks.
+- `verify-commit-range` and PR checks.
 - Richer MCP client smoke tests.
 - Generated shell completions.
 
