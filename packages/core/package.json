@@ -1,6 +1,6 @@
 {
   "name": "@agent-relay/core",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Core project-local state and coordination logic for Agent Relay.",
   "type": "module",
   "license": "MIT",

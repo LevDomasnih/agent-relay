@@ -1,6 +1,6 @@
 {
   "name": "@agent-relay/cli",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "CLI for Agent Relay.",
   "type": "module",
   "license": "MIT",
@@ -40,7 +40,7 @@
     "check": "tsc -b --pretty false"
   },
   "dependencies": {
-    "@agent-relay/core": "0.1.4",
+    "@agent-relay/core": "0.1.5",
     "commander": "^14.0.2"
   }
 }

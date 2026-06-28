@@ -1,6 +1,6 @@
 {
   "name": "@agent-relay/mcp-server",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "MCP server for Agent Relay.",
   "type": "module",
   "license": "MIT",
@@ -40,7 +40,7 @@
     "check": "tsc -b --pretty false"
   },
   "dependencies": {
-    "@agent-relay/core": "0.1.4",
+    "@agent-relay/core": "0.1.5",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "zod": "^4.1.13"
   }
