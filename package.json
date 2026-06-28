@@ -24,7 +24,8 @@
     "format": "prettier --check .",
     "format:write": "prettier --write .",
     "pack:dry-run": "npm pack --dry-run --json --workspace @agent-relay/core --workspace @agent-relay/cli --workspace @agent-relay/mcp-server",
-    "release:check": "pnpm run format && pnpm run check && pnpm run test && pnpm run build && pnpm run pack:dry-run"
+    "release:check": "pnpm run format && pnpm run check && pnpm run test && pnpm run build && pnpm run pack:dry-run",
+    "release:bump": "node scripts/bump-version.mjs"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",

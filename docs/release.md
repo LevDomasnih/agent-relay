@@ -8,9 +8,14 @@ This project is a pnpm workspace with three publishable packages:
 
 ## Automated Publishing
 
-Releases are published by GitHub Actions from `.github/workflows/release.yml`.
-The workflow runs when a `v*` tag is pushed, or when it is started manually with
-an existing tag.
+Releases are prepared and published by GitHub Actions:
+
+1. Run the `Prepare Release` workflow from GitHub Actions and choose `patch`,
+   `minor`, or `major`.
+2. The workflow bumps every package version, commits the change, creates the
+   matching `v*` tag, and pushes it.
+3. The pushed tag starts `.github/workflows/release.yml`, which publishes npm
+   packages and creates or updates the GitHub Release.
 
 For every release it:
 
@@ -36,7 +41,7 @@ If Trusted Publishing is not enabled yet, add a GitHub Actions secret named
 `NPM_TOKEN` with publish access to these packages. Trusted Publishing is
 preferred because it avoids long-lived npm tokens.
 
-## Before Tagging
+## Before Releasing
 
 1. Confirm the package scope and ownership on npm.
 2. Run `pnpm install`.
@@ -45,13 +50,10 @@ preferred because it avoids long-lived npm tokens.
 5. Smoke-test the MCP server with a real MCP client.
 6. Check package contents with `pnpm run pack:dry-run`.
 7. Confirm `doctor` and `migrate` work against a legacy state fixture.
-8. Bump the root and workspace package versions.
-9. Commit the version bump.
-10. Tag the release and push the tag:
+8. Start `Prepare Release` from GitHub Actions.
 
 ```bash
-git tag -a v0.1.4 -m "v0.1.4"
-git push origin main v0.1.4
+gh workflow run prepare-release.yml -f release_type=patch
 ```
 
 ## Manual Publish Fallback

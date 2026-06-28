@@ -280,10 +280,10 @@ pnpm run test
 pnpm run build
 ```
 
-Релизы автоматизированы через GitHub Actions. После bump версий достаточно
-запушить tag `v*`: workflow проверит репозиторий, опубликует npm-пакеты и
-создаст или обновит GitHub Release. Детали настройки npm Trusted Publishing:
-[docs/release.md](docs/release.md).
+Релизы автоматизированы через GitHub Actions. Запускаешь `Prepare Release` с
+`patch`, `minor` или `major`: workflow сам bump-ит версии, коммитит релиз,
+создает tag, а tag workflow публикует npm-пакеты и создает или обновляет GitHub
+Release. Детали настройки npm Trusted Publishing: [docs/release.md](docs/release.md).
 
 ## License
 

@@ -459,10 +459,11 @@ node /path/to/agent-relay/packages/cli/dist/index.js doctor
 
 Release notes live in [docs/release.md](docs/release.md).
 
-Releases are automated through GitHub Actions. Push a `v*` tag after bumping the
-workspace versions, and the release workflow verifies the repo, publishes the npm
-packages, and creates or updates the GitHub Release. See
-[docs/release.md](docs/release.md) for npm Trusted Publishing setup.
+Releases are automated through GitHub Actions. Run the `Prepare Release`
+workflow with `patch`, `minor`, or `major`; it bumps versions, commits the
+release, creates the tag, and the tag workflow publishes the npm packages and
+creates or updates the GitHub Release. See [docs/release.md](docs/release.md)
+for npm Trusted Publishing setup.
 
 ## Roadmap
 
