@@ -14,12 +14,17 @@
   },
   "homepage": "https://github.com/LevDomasnih/agent-coordinator#readme",
   "packageManager": "pnpm@9.15.4",
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "build": "tsc -b packages/core packages/cli packages/mcp-server",
     "check": "tsc -b --pretty false packages/core packages/cli packages/mcp-server",
     "test": "node --test --import tsx packages/core/test/*.test.ts",
     "format": "prettier --check .",
-    "format:write": "prettier --write ."
+    "format:write": "prettier --write .",
+    "pack:dry-run": "npm pack --dry-run --json --workspace @agent-coordinator/core --workspace @agent-coordinator/cli --workspace @agent-coordinator/mcp-server",
+    "release:check": "pnpm run format && pnpm run check && pnpm run test && pnpm run build && pnpm run pack:dry-run"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",

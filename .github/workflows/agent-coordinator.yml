@@ -41,6 +41,9 @@ jobs:
       - name: Build
         run: pnpm run build
 
+      - name: Verify package contents
+        run: pnpm run pack:dry-run
+
       - name: Verify agent commit trailers
         if: github.event_name == 'pull_request'
         run: |

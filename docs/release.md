@@ -10,15 +10,12 @@ This project is a pnpm workspace with three publishable packages:
 
 1. Confirm the package scope and ownership on npm.
 2. Run `pnpm install`.
-3. Run `pnpm run format`.
-4. Run `pnpm run check`.
-5. Run `pnpm run test`.
-6. Run `pnpm run build`.
-7. Smoke-test the CLI in a clean git repository.
-8. Smoke-test the MCP server with a real MCP client.
-9. Check package contents with `pnpm --filter <package> pack --dry-run`.
-10. Confirm `doctor` and `migrate` work against a legacy state fixture.
-11. Tag the release after publish.
+3. Run `pnpm run release:check`.
+4. Smoke-test the CLI in a clean git repository.
+5. Smoke-test the MCP server with a real MCP client.
+6. Check package contents with `pnpm run pack:dry-run`.
+7. Confirm `doctor` and `migrate` work against a legacy state fixture.
+8. Tag the release after publish.
 
 ## Publish Order
 
