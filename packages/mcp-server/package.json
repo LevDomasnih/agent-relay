@@ -1,0 +1,19 @@
+{
+  "name": "@agent-coordinator/mcp-server",
+  "version": "0.1.0",
+  "description": "MCP server for Agent Coordinator.",
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "agent-coordinator-mcp": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "check": "tsc -b --pretty false"
+  },
+  "dependencies": {
+    "@agent-coordinator/core": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^4.1.13"
+  }
+}

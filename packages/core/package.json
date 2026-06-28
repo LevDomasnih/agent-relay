@@ -1,0 +1,19 @@
+{
+  "name": "@agent-coordinator/core",
+  "version": "0.1.0",
+  "description": "Core project-local state and coordination logic for Agent Coordinator.",
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "check": "tsc -b --pretty false"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}

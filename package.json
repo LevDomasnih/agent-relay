@@ -1,0 +1,20 @@
+{
+  "name": "agent-coordinator-monorepo",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Project-local coordination layer for parallel AI coding agents.",
+  "type": "module",
+  "license": "MIT",
+  "packageManager": "pnpm@9.15.4",
+  "scripts": {
+    "build": "tsc -b packages/core packages/cli packages/mcp-server",
+    "check": "tsc -b --pretty false packages/core packages/cli packages/mcp-server",
+    "format": "prettier --check .",
+    "format:write": "prettier --write ."
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.3"
+  }
+}

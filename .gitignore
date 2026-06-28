@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.agent-coordinator/state.json
+.agent-coordinator/events.jsonl
+.agent-coordinator/messages.jsonl
+.agent-coordinator/*.lock
+.DS_Store
