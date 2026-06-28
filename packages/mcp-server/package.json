@@ -1,6 +1,6 @@
 {
   "name": "@coordinaut/mcp-server",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "MCP server for Coordinaut.",
   "type": "module",
   "license": "MIT",
@@ -41,7 +41,7 @@
     "smoke": "node scripts/smoke-mcp.mjs"
   },
   "dependencies": {
-    "@coordinaut/core": "0.1.5",
+    "@coordinaut/core": "0.1.6",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "zod": "^4.1.13"
   }
