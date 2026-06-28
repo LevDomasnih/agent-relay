@@ -3,6 +3,10 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Status](https://img.shields.io/badge/status-early_MVP-f59e0b.svg)](#status)
 
+[English](README.md) · [Русский](README.ru.md) · [简体中文](README.zh-CN.md) ·
+[Deutsch](README.de.md) · [Español](README.es.md) ·
+[Português do Brasil](README.pt-BR.md) · [日本語](README.ja.md)
+
 Coordinate multiple AI coding agents inside one git repository.
 
 Agent Coordinator gives Codex, Claude Code, Cursor, and other coding agents a
