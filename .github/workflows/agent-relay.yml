@@ -41,6 +41,9 @@ jobs:
       - name: Build
         run: pnpm run build
 
+      - name: Smoke-test CLI
+        run: pnpm run smoke:cli
+
       - name: Verify package contents
         run: pnpm run pack:dry-run
 
