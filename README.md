@@ -7,20 +7,123 @@
 [Deutsch](README.de.md) · [Español](README.es.md) ·
 [Português do Brasil](README.pt-BR.md) · [日本語](README.ja.md)
 
-Coordinate multiple AI coding agents inside one git repository.
+Agent Relay is a coordination layer for parallel AI coding agents working in
+the same repository.
 
-Agent Relay gives Codex, Claude Code, Cursor, and other coding agents a
-small shared protocol for task ownership, scoped locks, handoffs, messages,
-leases, verification checks, generated snapshots, and git attribution.
-
-It is the missing layer between "everyone edits `AGENT_TASKS.md` by hand" and
-"we need a hosted orchestration platform".
+It gives Codex, Claude Code, Cursor, and other agents one shared protocol for
+task ownership, scoped file locks, handoffs, inbox messages, leases,
+verification checks, generated human snapshots, and git attribution.
 
 ```text
 agent-relay claim --task AGT-20260628-001 --agent frontend-codex --files "src/pages/settings/**"
 agent-relay verify-worktree --agent-instance agent_123
 agent-relay release --task AGT-20260628-001 --reason "iteration finished"
 ```
+
+Use it when one agent is no longer enough, but a full hosted orchestration
+platform is too much.
+
+## At A Glance
+
+| Need                                      | Agent Relay gives you                                 |
+| ----------------------------------------- | ----------------------------------------------------- |
+| Run 2-5 coding agents in one repo         | Explicit task claims and scoped file ownership        |
+| Avoid accidental overlap                  | Conflict checks for active leases and file scopes     |
+| Let agents ask each other for handoff     | Handoff requests, directed messages, broadcasts       |
+| Keep work explainable after thread resume | Events, inbox history, snapshots, and commit trailers |
+| Start local, grow into a team setup       | JSON, SQLite, or hosted remote storage behind one API |
+| Use CLI or MCP clients                    | Same protocol through terminal commands and MCP tools |
+
+## Install
+
+npm publishing is pending until the final public package scope is available or
+renamed. For now, run from source:
+
+```bash
+git clone https://github.com/LevDomasnih/agent-relay.git
+cd agent-relay
+pnpm install
+pnpm run build
+pnpm --filter @agent-relay/cli agent-relay --help
+```
+
+Once packages are published, the intended CLI flow is:
+
+```bash
+npx @agent-relay/cli init
+npx @agent-relay/cli doctor
+```
+
+## 60-Second Workflow
+
+```bash
+agent-relay init
+
+agent-relay create \
+  --title "Fix settings layout" \
+  --scope "settings page" \
+  --files "src/pages/settings/**"
+
+agent-relay claim \
+  --task AGT-20260628-001 \
+  --agent frontend-codex \
+  --agent-instance agent_123 \
+  --thread 019eff77 \
+  --files "src/pages/settings/**"
+
+# edit code...
+
+agent-relay verify-worktree --agent-instance agent_123
+agent-relay update --task AGT-20260628-001 --status verifying --next "run regression"
+agent-relay release --task AGT-20260628-001 --agent-instance agent_123 --reason "iteration finished"
+agent-relay snapshot
+```
+
+## How Agents Coordinate
+
+```mermaid
+flowchart LR
+  A["Agent starts"] --> B["status / inbox"]
+  B --> C["claim task + files"]
+  C --> D{"scope conflict?"}
+  D -- "yes" --> E["handoff request"]
+  E --> F["owner responds"]
+  F --> C
+  D -- "no" --> G["edit + heartbeat"]
+  G --> H["verify-worktree / verify-commit"]
+  H --> I{"checks pass?"}
+  I -- "no" --> G
+  I -- "yes" --> J["commit trailers + release"]
+  J --> K["snapshot + explainable history"]
+```
+
+The important rule is simple: agents do not coordinate by racing to edit the
+same Markdown file. They coordinate through a small state machine, and the
+generated Markdown snapshot is just the human-readable view.
+
+## Storage Choices
+
+| Mode     | Best for                         | Command                                 |
+| -------- | -------------------------------- | --------------------------------------- |
+| `json`   | Default local use                | `agent-relay init`                      |
+| `sqlite` | Larger long-lived local projects | `agent-relay init --storage sqlite`     |
+| `remote` | Distributed teams / hosted sync  | `agent-relay init --storage remote ...` |
+
+Remote team setup:
+
+```bash
+AGENT_RELAY_SERVER_TOKEN="<set-a-local-token>" agent-relay-server
+
+AGENT_RELAY_TOKEN="<set-a-local-token>" agent-relay init \
+  --storage remote \
+  --remote-url http://localhost:3737 \
+  --team platform \
+  --project web-app
+```
+
+The hosted server stores team/project state in SQLite, uses Bearer-token auth,
+supports `admin`, `member`, and `read` roles, and protects stale writes with
+ETag/`If-Match`.
 
 ## What It Solves
 
@@ -59,23 +162,6 @@ test, and hosted server smoke test are implemented and verified.
 npm publishing is intentionally pending until the final public package scope is
 available or renamed.
 
-Install the CLI with `npx`:
-
-```bash
-npx @agent-relay/cli init
-npx @agent-relay/cli doctor
-```
-
-Or run it from source:
-
-```bash
-git clone https://github.com/LevDomasnih/agent-relay.git
-cd agent-relay
-pnpm install
-pnpm run build
-pnpm --filter @agent-relay/cli agent-relay --help
-```
-
 ## Quick Start
 
 Initialize a repository:
@@ -89,25 +175,6 @@ For a family of git worktrees, put shared coordinator state in one directory:
 
 ```bash
 agent-relay init --state-dir ../.agent-relay-shared
-```
-
-For larger long-lived projects, use SQLite storage:
-
-```bash
-agent-relay init --storage sqlite
-```
-
-For a distributed team, run the hosted sync backend and initialize each checkout
-against the same team/project namespace:
-
-```bash
-AGENT_RELAY_SERVER_TOKEN="<set-a-local-token>" agent-relay-server
-
-AGENT_RELAY_TOKEN="<set-a-local-token>" agent-relay init \
-  --storage remote \
-  --remote-url http://localhost:3737 \
-  --team platform \
-  --project web-app
 ```
 
 Create a task:
@@ -165,8 +232,8 @@ a small lifecycle:
 7. Release the lease, record a blocker, or mark the task done.
 8. Leave commit trailers so future agents can explain the change.
 
-The generated Markdown snapshot is for humans. The JSON state and JSONL logs are
-the source of truth.
+The generated Markdown snapshot is for humans. The coordinator state, event
+log, and message log are the source of truth.
 
 ## Handoffs
 
@@ -202,7 +269,7 @@ Every request and response is written to the event log and message log.
 
 ## Agent Inbox And Presence
 
-Agents can talk through an inbox instead of scraping JSONL logs:
+Agents can talk through an inbox instead of scraping raw event logs:
 
 ```bash
 agent-relay message \
@@ -452,6 +519,9 @@ agent-relay completion fish > ~/.config/fish/completions/agent-relay.fish
 | `sqlite` | Larger long-lived local projects  | `.agent-relay/state.sqlite`            |
 | `remote` | Distributed teams and hosted sync | `agent-relay-server` over HTTP         |
 
+This is the same choice shown near the top, with the operational details kept
+here for people wiring real projects.
+
 `agent-relay init --storage sqlite` keeps the same CLI and MCP behavior while
 storing state, events, and messages in SQLite.
 
@@ -522,8 +592,8 @@ state requires migration, run:
 agent-relay migrate
 ```
 
-Migration normalizes `state.json` to the current schema and writes a
-`state.json.bak-*` backup before changing the file.
+Migration normalizes coordinator state to the current schema and writes a
+storage-specific backup before changing it.
 
 ## Development
 
