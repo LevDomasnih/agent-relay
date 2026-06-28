@@ -76,6 +76,12 @@ agent-coordinator init
 agent-coordinator doctor
 ```
 
+多个 git worktree 可以使用同一个 shared state：
+
+```bash
+agent-coordinator init --state-dir ../.agent-coordinator-shared
+```
+
 创建任务：
 
 ```bash

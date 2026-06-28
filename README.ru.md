@@ -77,6 +77,12 @@ agent-coordinator init
 agent-coordinator doctor
 ```
 
+Для нескольких git worktree можно вынести общий state:
+
+```bash
+agent-coordinator init --state-dir ../.agent-coordinator-shared
+```
+
 Создать задачу:
 
 ```bash

@@ -79,6 +79,12 @@ agent-coordinator init
 agent-coordinator doctor
 ```
 
+複数の git worktrees では shared state directory を使えます。
+
+```bash
+agent-coordinator init --state-dir ../.agent-coordinator-shared
+```
+
 Task を作成:
 
 ```bash

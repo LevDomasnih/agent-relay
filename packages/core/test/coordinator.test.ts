@@ -28,6 +28,34 @@ test("init creates coordinator files and a generated snapshot", async () => {
   assert.match(snapshot, /Generated\. Do not edit\./u);
 });
 
+test("shared stateDir lets separate checkouts use the same coordinator state", async () => {
+  const rootA = await tempGitRepo();
+  const rootB = await tempGitRepo();
+  const stateDir = await mkdtemp(path.join(os.tmpdir(), "agent-state-"));
+  const coordinatorA = new AgentCoordinator(rootA, undefined, { stateDir });
+  const coordinatorB = new AgentCoordinator(rootB, undefined, { stateDir });
+
+  await coordinatorA.init("shared", { stateDir });
+  await coordinatorB.init("shared", { stateDir });
+  await coordinatorA.createTask({
+    displayId: "AGT-20260628-001",
+    title: "Shared state",
+    scope: "shared",
+    filesGlobs: ["src/**"],
+  });
+
+  const reloadedB = new AgentCoordinator(rootB);
+  const tasks = await reloadedB.listTasks();
+  const doctor = await reloadedB.doctor();
+
+  assert.equal(tasks.length, 1);
+  assert.equal(tasks[0]?.displayId, "AGT-20260628-001");
+  assert.equal(doctor.statePath, path.join(stateDir, "state.json"));
+  assert.ok(
+    doctor.checks.some((check) => check.name === "state dir" && check.ok),
+  );
+});
+
 test("create and claim use display ids while storing stable machine ids", async () => {
   const root = await tempGitRepo();
   const coordinator = new AgentCoordinator(root);

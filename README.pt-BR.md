@@ -77,6 +77,12 @@ agent-coordinator init
 agent-coordinator doctor
 ```
 
+Para vários git worktrees, use um state compartilhado:
+
+```bash
+agent-coordinator init --state-dir ../.agent-coordinator-shared
+```
+
 Crie uma tarefa:
 
 ```bash

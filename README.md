@@ -81,6 +81,12 @@ agent-coordinator init
 agent-coordinator doctor
 ```
 
+For a family of git worktrees, put shared coordinator state in one directory:
+
+```bash
+agent-coordinator init --state-dir ../.agent-coordinator-shared
+```
+
 Create a task:
 
 ```bash
@@ -406,9 +412,13 @@ Run `agent-coordinator <command> --help` for command-specific options.
 
 ## Multi-Worktree Caveat
 
-The MVP is project-local: one checkout has one `.agent-coordinator` state. If
-agents work in separate worktrees or clones, they will not see each other's
-locks unless the team uses a shared state directory or a future shared backend.
+By default one checkout has one `.agent-coordinator` state. If agents work in
+separate worktrees or clones, initialize each checkout with the same state
+directory:
+
+```bash
+agent-coordinator init --state-dir /path/to/shared-agent-coordinator-state
+```
 
 `agent-coordinator doctor` prints the resolved root and state path so this is
 visible.

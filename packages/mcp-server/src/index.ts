@@ -52,12 +52,15 @@ server.registerTool(
     description: "Initialize Agent Coordinator in the current project.",
     inputSchema: z.object({
       projectName: z.string().optional(),
+      stateDir: z.string().optional(),
       root: z.string().optional(),
     }),
   },
-  async ({ projectName, root }) => {
-    const coordinator = new AgentCoordinator(root ?? process.cwd());
-    const config = await coordinator.init(projectName);
+  async ({ projectName, stateDir, root }) => {
+    const coordinator = new AgentCoordinator(root ?? process.cwd(), undefined, {
+      stateDir,
+    });
+    const config = await coordinator.init(projectName, { stateDir });
     return jsonResult({ ok: true, config });
   },
 );

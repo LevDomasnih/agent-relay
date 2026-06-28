@@ -22,9 +22,14 @@ program
   .command("init")
   .description("Initialize Agent Coordinator in the current project.")
   .option("--project-name <name>", "Project name")
-  .action(async (options: { projectName?: string }) => {
-    const coordinator = new AgentCoordinator(process.cwd());
-    const config = await coordinator.init(options.projectName);
+  .option("--state-dir <path>", "Shared state directory for worktree families")
+  .action(async (options: { projectName?: string; stateDir?: string }) => {
+    const coordinator = new AgentCoordinator(process.cwd(), undefined, {
+      stateDir: options.stateDir,
+    });
+    const config = await coordinator.init(options.projectName, {
+      stateDir: options.stateDir,
+    });
     console.log(JSON.stringify({ ok: true, config }, null, 2));
   });
 

@@ -1,4 +1,4 @@
-import { constants, existsSync } from "node:fs";
+import { constants, existsSync, readFileSync } from "node:fs";
 import {
   access,
   appendFile,
@@ -136,6 +136,7 @@ export type CoordinatorConfig = {
   projectName: string;
   defaultLeaseMinutes: number;
   snapshotPath: string;
+  stateDir?: string;
 };
 
 export type GitIdentityBackup = {
@@ -156,6 +157,7 @@ export type CoordinatorState = {
 export type CoordinatorPaths = {
   root: string;
   dir: string;
+  stateDir: string;
   config: string;
   state: string;
   events: string;
@@ -172,6 +174,10 @@ export type Storage = {
   appendMessage(message: Message): Promise<void>;
   readEvents(): Promise<Event[]>;
   readMessages(): Promise<Message[]>;
+};
+
+export type AgentCoordinatorOptions = {
+  stateDir?: string;
 };
 
 export type CreateTaskInput = {
@@ -415,24 +421,37 @@ export class AgentCoordinator {
   readonly paths: CoordinatorPaths;
   readonly storage: Storage;
 
-  constructor(root: string, storage?: Storage) {
-    this.paths = createPaths(root);
+  constructor(
+    root: string,
+    storage?: Storage,
+    options?: AgentCoordinatorOptions,
+  ) {
+    this.paths = createPaths(root, options?.stateDir);
     this.storage = storage ?? new JsonFileStorage(this.paths);
   }
 
   async init(
     projectName = path.basename(this.paths.root),
+    options: AgentCoordinatorOptions = {},
   ): Promise<CoordinatorConfig> {
     await mkdir(this.paths.dir, { recursive: true });
+    await mkdir(this.paths.stateDir, { recursive: true });
     await mkdir(path.join(this.paths.dir, "snapshots"), { recursive: true });
     const config: CoordinatorConfig = {
       version: 1,
       projectName,
       defaultLeaseMinutes: 120,
       snapshotPath: ".agent-coordinator/snapshots/TASKS.md",
+      stateDir: options.stateDir,
     };
     if (!existsSync(this.paths.config)) {
       await this.storage.writeConfig(config);
+    } else if (options.stateDir) {
+      const existing = await this.storage.readConfig();
+      await this.storage.writeConfig({
+        ...existing,
+        stateDir: options.stateDir,
+      });
     }
     if (!existsSync(this.paths.state)) {
       await this.storage.writeState({
@@ -1131,6 +1150,11 @@ export class AgentCoordinator {
         ? this.paths.config
         : "missing .agent-coordinator/config.json",
     });
+    checks.push({
+      name: "state dir",
+      ok: existsSync(this.paths.stateDir),
+      message: this.paths.stateDir,
+    });
     checks.push(
       await check("state", async () => {
         const state = await this.storage.readState();
@@ -1383,16 +1407,21 @@ export async function findProjectRoot(start = process.cwd()): Promise<string> {
   }
 }
 
-export function createPaths(root: string): CoordinatorPaths {
+export function createPaths(
+  root: string,
+  stateDirInput?: string,
+): CoordinatorPaths {
   const dir = path.join(root, ".agent-coordinator");
+  const stateDir = resolveStateDir(root, dir, stateDirInput);
   return {
     root,
     dir,
+    stateDir,
     config: path.join(dir, "config.json"),
-    state: path.join(dir, "state.json"),
-    events: path.join(dir, "events.jsonl"),
-    messages: path.join(dir, "messages.jsonl"),
-    lock: path.join(dir, "state.lock"),
+    state: path.join(stateDir, "state.json"),
+    events: path.join(stateDir, "events.jsonl"),
+    messages: path.join(stateDir, "messages.jsonl"),
+    lock: path.join(stateDir, "state.lock"),
   };
 }
 
@@ -1403,6 +1432,32 @@ function defaultConfig(root: string): CoordinatorConfig {
     defaultLeaseMinutes: 120,
     snapshotPath: ".agent-coordinator/snapshots/TASKS.md",
   };
+}
+
+function resolveStateDir(
+  root: string,
+  defaultDir: string,
+  stateDirInput?: string,
+): string {
+  const configured =
+    stateDirInput ??
+    process.env.AGENT_COORDINATOR_STATE_DIR ??
+    readConfiguredStateDir(defaultDir);
+  if (!configured) return defaultDir;
+  return path.resolve(root, configured);
+}
+
+function readConfiguredStateDir(defaultDir: string): string | undefined {
+  const configPath = path.join(defaultDir, "config.json");
+  if (!existsSync(configPath)) return undefined;
+  try {
+    const config = JSON.parse(
+      readFileSync(configPath, "utf8"),
+    ) as Partial<CoordinatorConfig>;
+    return config.stateDir;
+  } catch {
+    return undefined;
+  }
 }
 
 function normalizeState(input: Partial<CoordinatorState>): CoordinatorState {
@@ -1780,6 +1835,7 @@ async function withProjectLock<T>(
   description: string,
 ): Promise<T> {
   await mkdir(paths.dir, { recursive: true });
+  await mkdir(paths.stateDir, { recursive: true });
   const started = Date.now();
   while (true) {
     try {
