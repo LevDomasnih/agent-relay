@@ -5,6 +5,14 @@
   "description": "Project-local coordination layer for parallel AI coding agents.",
   "type": "module",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LevDomasnih/agent-coordinator.git"
+  },
+  "bugs": {
+    "url": "https://github.com/LevDomasnih/agent-coordinator/issues"
+  },
+  "homepage": "https://github.com/LevDomasnih/agent-coordinator#readme",
   "packageManager": "pnpm@9.15.4",
   "scripts": {
     "build": "tsc -b packages/core packages/cli packages/mcp-server",

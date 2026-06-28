@@ -2,6 +2,7 @@
 import { Command } from "commander";
 import {
   AgentCoordinator,
+  type HandoffStatus,
   type LockMode,
   TASK_STATUSES,
   findProjectRoot,
@@ -305,6 +306,87 @@ program
     },
   );
 
+const handoff = program
+  .command("handoff")
+  .description("Request or respond to a scoped handoff.");
+
+handoff
+  .command("request")
+  .description("Request handoff for files owned by another active claim.")
+  .requiredOption("--task <id>", "Requesting task id")
+  .requiredOption("--agent <name>", "Requesting agent name")
+  .requiredOption("--reason <reason>", "Why this handoff is needed")
+  .option("--agent-instance <id>", "Stable agent instance id")
+  .option("--thread <id>", "Thread id")
+  .option("--files <files>", "Comma-separated files/globs")
+  .action(
+    async (options: {
+      task: string;
+      agent: string;
+      reason: string;
+      agentInstance?: string;
+      thread?: string;
+      files?: string;
+    }) => {
+      const coordinator = await loadCoordinator();
+      const request = await coordinator.requestHandoff({
+        taskId: options.task,
+        agent: options.agent,
+        agentInstanceId: options.agentInstance,
+        threadId: options.thread,
+        filesGlobs: options.files ? splitList(options.files) : undefined,
+        reason: options.reason,
+      });
+      console.log(JSON.stringify({ ok: true, handoff: request }, null, 2));
+    },
+  );
+
+handoff
+  .command("respond")
+  .description("Respond to a handoff request.")
+  .requiredOption("--id <id>", "Handoff id")
+  .requiredOption(
+    "--status <status>",
+    "grant_after_commit, handoff_now, denied, cancelled",
+  )
+  .option("--agent <name>", "Responding agent name")
+  .option("--agent-instance <id>", "Stable agent instance id")
+  .option("--thread <id>", "Thread id")
+  .option("--response <text>", "Response text")
+  .action(
+    async (options: {
+      id: string;
+      status: string;
+      agent?: string;
+      agentInstance?: string;
+      thread?: string;
+      response?: string;
+    }) => {
+      const coordinator = await loadCoordinator();
+      const result = await coordinator.respondHandoff({
+        handoffId: options.id,
+        status: parseHandoffResponseStatus(options.status),
+        agent: options.agent,
+        agentInstanceId: options.agentInstance,
+        threadId: options.thread,
+        response: options.response,
+      });
+      console.log(JSON.stringify({ ok: true, handoff: result }, null, 2));
+    },
+  );
+
+handoff
+  .command("list")
+  .description("List handoff requests.")
+  .option("--status <status>", "Filter by handoff status")
+  .action(async (options: { status?: string }) => {
+    const coordinator = await loadCoordinator();
+    const handoffs = await coordinator.listHandoffs(
+      parseOptionalHandoffStatus(options.status),
+    );
+    console.log(JSON.stringify({ ok: true, handoffs }, null, 2));
+  });
+
 program
   .command("snapshot")
   .description("Export a generated Markdown snapshot.")
@@ -340,12 +422,43 @@ program
   );
 
 program
+  .command("explain")
+  .description("Explain a task or commit from events, messages, and trailers.")
+  .option("--task <id>", "Task id or display id")
+  .option("--commit <sha>", "Commit sha")
+  .action(async (options: { task?: string; commit?: string }) => {
+    if (!options.task && !options.commit) {
+      throw new Error("Use --task or --commit");
+    }
+    const coordinator = await loadCoordinator();
+    const explanation = await coordinator.explain({
+      taskId: options.task,
+      commit: options.commit,
+    });
+    console.log(JSON.stringify({ ok: true, ...explanation }, null, 2));
+  });
+
+program
   .command("git-identity-reset")
   .description("Restore the git identity saved before git-identity.")
   .action(async () => {
     const coordinator = await loadCoordinator();
     const result = await coordinator.resetGitIdentity();
     console.log(JSON.stringify({ ok: true, ...result }, null, 2));
+  });
+
+program
+  .command("install-hooks")
+  .description("Install local git hooks that run verify-commit.")
+  .option(
+    "--agent-instance-env <name>",
+    "Environment variable used by hooks",
+    "AGENT_COORDINATOR_INSTANCE",
+  )
+  .action(async (options: { agentInstanceEnv: string }) => {
+    const coordinator = await loadCoordinator();
+    const hooks = await coordinator.installHooks(options.agentInstanceEnv);
+    console.log(JSON.stringify({ ok: true, hooks }, null, 2));
   });
 
 program
@@ -458,5 +571,38 @@ function parseLockMode(mode?: string): LockMode | undefined {
   }
   throw new Error(
     `Invalid lock mode "${mode}". Expected one of: exclusive, shared-read, shared-docs, advisory`,
+  );
+}
+
+function parseOptionalHandoffStatus(
+  status?: string,
+): HandoffStatus | undefined {
+  return status ? parseHandoffStatus(status) : undefined;
+}
+
+function parseHandoffResponseStatus(
+  status: string,
+): Exclude<HandoffStatus, "requested"> {
+  const parsed = parseHandoffStatus(status);
+  if (parsed === "requested") {
+    throw new Error(
+      "Use one of: grant_after_commit, handoff_now, denied, cancelled",
+    );
+  }
+  return parsed;
+}
+
+function parseHandoffStatus(status: string): HandoffStatus {
+  if (
+    status === "requested" ||
+    status === "grant_after_commit" ||
+    status === "handoff_now" ||
+    status === "denied" ||
+    status === "cancelled"
+  ) {
+    return status;
+  }
+  throw new Error(
+    `Invalid handoff status "${status}". Expected one of: requested, grant_after_commit, handoff_now, denied, cancelled`,
   );
 }

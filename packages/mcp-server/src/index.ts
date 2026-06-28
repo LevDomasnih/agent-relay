@@ -6,6 +6,7 @@ import {
   TASK_STATUSES,
   findProjectRoot,
   type AgentTool,
+  type HandoffStatus,
   type LockMode,
   type TaskStatus,
 } from "@agent-coordinator/core";
@@ -19,6 +20,19 @@ const lockModeSchema = z
   .enum(["exclusive", "shared-read", "shared-docs", "advisory"])
   .optional();
 const toolSchema = z.enum(["codex", "claude", "cursor", "unknown"]).optional();
+const handoffStatusSchema = z.enum([
+  "requested",
+  "grant_after_commit",
+  "handoff_now",
+  "denied",
+  "cancelled",
+]);
+const handoffResponseStatusSchema = z.enum([
+  "grant_after_commit",
+  "handoff_now",
+  "denied",
+  "cancelled",
+]);
 
 server.registerTool(
   "init_project",
@@ -279,6 +293,78 @@ server.registerTool(
 );
 
 server.registerTool(
+  "request_handoff",
+  {
+    title: "Request Handoff",
+    description: "Request handoff for files owned by another active claim.",
+    inputSchema: z.object({
+      taskId: z.string(),
+      agent: z.string(),
+      agentInstanceId: z.string().optional(),
+      threadId: z.string().optional(),
+      filesGlobs: listSchema,
+      reason: z.string(),
+      root: z.string().optional(),
+    }),
+  },
+  async (input) => {
+    const coordinator = await loadCoordinator(input.root);
+    return jsonResult({
+      ok: true,
+      handoff: await coordinator.requestHandoff(input),
+    });
+  },
+);
+
+server.registerTool(
+  "respond_handoff",
+  {
+    title: "Respond Handoff",
+    description: "Respond to a handoff request.",
+    inputSchema: z.object({
+      handoffId: z.string(),
+      status: handoffResponseStatusSchema,
+      agent: z.string().optional(),
+      agentInstanceId: z.string().optional(),
+      threadId: z.string().optional(),
+      response: z.string().optional(),
+      root: z.string().optional(),
+    }),
+  },
+  async (input) => {
+    const coordinator = await loadCoordinator(input.root);
+    return jsonResult({
+      ok: true,
+      handoff: await coordinator.respondHandoff({
+        ...input,
+        status: input.status as Exclude<HandoffStatus, "requested">,
+      }),
+    });
+  },
+);
+
+server.registerTool(
+  "list_handoffs",
+  {
+    title: "List Handoffs",
+    description: "List handoff requests.",
+    inputSchema: z.object({
+      status: handoffStatusSchema.optional(),
+      root: z.string().optional(),
+    }),
+  },
+  async ({ status, root }) => {
+    const coordinator = await loadCoordinator(root);
+    return jsonResult({
+      ok: true,
+      handoffs: await coordinator.listHandoffs(
+        status as HandoffStatus | undefined,
+      ),
+    });
+  },
+);
+
+server.registerTool(
   "export_snapshot",
   {
     title: "Export Snapshot",
@@ -322,6 +408,27 @@ server.registerTool(
 );
 
 server.registerTool(
+  "explain",
+  {
+    title: "Explain",
+    description:
+      "Explain a task or commit from events, messages, and trailers.",
+    inputSchema: z.object({
+      taskId: z.string().optional(),
+      commit: z.string().optional(),
+      root: z.string().optional(),
+    }),
+  },
+  async ({ taskId, commit, root }) => {
+    const coordinator = await loadCoordinator(root);
+    return jsonResult({
+      ok: true,
+      ...(await coordinator.explain({ taskId, commit })),
+    });
+  },
+);
+
+server.registerTool(
   "git_identity_reset",
   {
     title: "Git Identity Reset",
@@ -331,6 +438,25 @@ server.registerTool(
   async ({ root }) => {
     const coordinator = await loadCoordinator(root);
     return jsonResult({ ok: true, ...(await coordinator.resetGitIdentity()) });
+  },
+);
+
+server.registerTool(
+  "install_hooks",
+  {
+    title: "Install Hooks",
+    description: "Install local git hooks that run verify_commit.",
+    inputSchema: z.object({
+      agentInstanceEnv: z.string().optional(),
+      root: z.string().optional(),
+    }),
+  },
+  async ({ agentInstanceEnv, root }) => {
+    const coordinator = await loadCoordinator(root);
+    return jsonResult({
+      ok: true,
+      hooks: await coordinator.installHooks(agentInstanceEnv),
+    });
   },
 );
 

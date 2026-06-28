@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { access, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -215,6 +215,109 @@ test("verify-worktree reports unclaimed files and accepts claimed scopes", async
 
   assert.equal(report.ok, false);
   assert.deepEqual(report.unclaimedFiles, ["other.ts"]);
+});
+
+test("handoff request and response are stored with messages and events", async () => {
+  const root = await tempGitRepo();
+  const coordinator = new AgentCoordinator(root);
+  await coordinator.init("sample");
+  await coordinator.createTask({
+    displayId: "AGT-20260628-001",
+    title: "Owner",
+    scope: "owner",
+    filesGlobs: ["src/**"],
+  });
+  await coordinator.createTask({
+    displayId: "AGT-20260628-002",
+    title: "Requester",
+    scope: "requester",
+    filesGlobs: ["src/page.ts"],
+  });
+  await coordinator.claimTask({
+    taskId: "AGT-20260628-001",
+    agent: "owner",
+    agentInstanceId: "owner_1",
+    threadId: "thread_owner",
+  });
+
+  const handoff = await coordinator.requestHandoff({
+    taskId: "AGT-20260628-002",
+    agent: "requester",
+    agentInstanceId: "requester_1",
+    threadId: "thread_requester",
+    filesGlobs: ["src/page.ts"],
+    reason: "need to patch page",
+  });
+  const response = await coordinator.respondHandoff({
+    handoffId: handoff.id,
+    status: "grant_after_commit",
+    agent: "owner",
+    response: "after current verification",
+  });
+  const listed = await coordinator.listHandoffs();
+  const explanation = await coordinator.explain({ taskId: "AGT-20260628-002" });
+
+  assert.equal(handoff.ownerAgent, "owner");
+  assert.equal(response.status, "grant_after_commit");
+  assert.equal(listed.length, 1);
+  assert.equal(explanation.handoffs[0]?.id, handoff.id);
+  assert.ok(
+    explanation.events.some((event) => event.type === "handoff.requested"),
+  );
+  assert.ok(
+    explanation.messages.some((message) =>
+      message.text.includes("Handoff requested"),
+    ),
+  );
+});
+
+test("explain can resolve task from commit trailers", async () => {
+  const root = await tempGitRepo();
+  const coordinator = new AgentCoordinator(root);
+  await coordinator.init("sample");
+  await coordinator.createTask({
+    displayId: "AGT-20260628-001",
+    title: "Commit task",
+    scope: "code",
+    filesGlobs: ["src/**"],
+  });
+  await writeFile(path.join(root, "file.ts"), "hello\n");
+  await execFileAsync("git", ["add", "."], { cwd: root });
+  await execFileAsync(
+    "git",
+    [
+      "commit",
+      "-m",
+      "feat: test trailers",
+      "-m",
+      "Agent: test-agent\nAgent-Task: AGT-20260628-001",
+    ],
+    { cwd: root },
+  );
+  const sha = (
+    await execFileAsync("git", ["rev-parse", "HEAD"], { cwd: root })
+  ).stdout.trim();
+
+  const explanation = await coordinator.explain({ commit: sha });
+
+  assert.equal(explanation.task?.displayId, "AGT-20260628-001");
+  assert.equal(explanation.commit?.trailers["Agent"], "test-agent");
+});
+
+test("install-hooks writes executable local git hooks", async () => {
+  const root = await tempGitRepo();
+  const coordinator = new AgentCoordinator(root);
+  await coordinator.init("sample");
+
+  const hooks = await coordinator.installHooks("AGENT_ID");
+
+  await access(hooks.preCommit);
+  await access(hooks.commitMsg);
+  assert.match(await readFile(hooks.preCommit, "utf8"), /AGENT_ID/u);
+  assert.match(
+    await readFile(hooks.commitMsg, "utf8"),
+    /--message-file "\$1"/u,
+  );
 });
 
 async function tempGitRepo(): Promise<string> {

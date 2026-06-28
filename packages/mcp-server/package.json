@@ -4,14 +4,37 @@
   "description": "MCP server for Agent Coordinator.",
   "type": "module",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LevDomasnih/agent-coordinator.git",
+    "directory": "packages/mcp-server"
+  },
+  "bugs": {
+    "url": "https://github.com/LevDomasnih/agent-coordinator/issues"
+  },
+  "homepage": "https://github.com/LevDomasnih/agent-coordinator#readme",
+  "keywords": [
+    "ai-agents",
+    "coding-agents",
+    "coordination",
+    "mcp",
+    "model-context-protocol",
+    "git"
+  ],
   "bin": {
     "agent-coordinator-mcp": "./dist/index.js"
   },
   "files": [
-    "dist",
+    "dist/**/*.js",
+    "dist/**/*.js.map",
+    "dist/**/*.d.ts",
+    "dist/**/*.d.ts.map",
     "README.md",
     "LICENSE"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc -b",
     "check": "tsc -b --pretty false"

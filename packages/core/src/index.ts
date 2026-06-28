@@ -8,6 +8,7 @@ import {
   rename,
   rm,
   stat,
+  chmod,
   writeFile,
 } from "node:fs/promises";
 import path from "node:path";
@@ -91,6 +92,29 @@ export type Message = {
   text: string;
 };
 
+export type HandoffStatus =
+  "requested" | "grant_after_commit" | "handoff_now" | "denied" | "cancelled";
+
+export type HandoffRequest = {
+  id: string;
+  status: HandoffStatus;
+  taskId: string;
+  taskDisplayId: string;
+  requestedByAgent: string;
+  requestedByAgentInstanceId?: string;
+  requestedByThreadId?: string;
+  ownerTaskId?: string;
+  ownerTaskDisplayId?: string;
+  ownerAgent?: string;
+  ownerAgentInstanceId?: string;
+  ownerThreadId?: string;
+  filesGlobs: string[];
+  reason: string;
+  response?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type CoordinatorConfig = {
   version: 1;
   projectName: string;
@@ -108,6 +132,7 @@ export type CoordinatorState = {
   version: 1;
   tasks: Task[];
   agents: AgentInstance[];
+  handoffs: HandoffRequest[];
   gitIdentityBackup?: GitIdentityBackup;
 };
 
@@ -128,6 +153,8 @@ export type Storage = {
   writeState(state: CoordinatorState): Promise<void>;
   appendEvent(event: Event): Promise<void>;
   appendMessage(message: Message): Promise<void>;
+  readEvents(): Promise<Event[]>;
+  readMessages(): Promise<Message[]>;
 };
 
 export type CreateTaskInput = {
@@ -221,6 +248,36 @@ export type VerifyCommitReport = VerifyWorktreeReport & {
   missingTrailers: string[];
 };
 
+export type RequestHandoffInput = {
+  taskId: string;
+  agent: string;
+  agentInstanceId?: string;
+  threadId?: string;
+  filesGlobs?: string[];
+  reason: string;
+};
+
+export type RespondHandoffInput = {
+  handoffId: string;
+  status: Exclude<HandoffStatus, "requested">;
+  agent?: string;
+  agentInstanceId?: string;
+  threadId?: string;
+  response?: string;
+};
+
+export type ExplainResult = {
+  task?: Task;
+  commit?: {
+    sha: string;
+    subject: string;
+    trailers: Record<string, string>;
+  };
+  events: Event[];
+  messages: Message[];
+  handoffs: HandoffRequest[];
+};
+
 export class JsonFileStorage implements Storage {
   constructor(private readonly paths: CoordinatorPaths) {}
 
@@ -250,6 +307,14 @@ export class JsonFileStorage implements Storage {
   async appendMessage(message: Message): Promise<void> {
     await ensureJsonl(this.paths.messages);
     await appendFile(this.paths.messages, `${JSON.stringify(message)}\n`);
+  }
+
+  async readEvents(): Promise<Event[]> {
+    return readJsonl<Event>(this.paths.events);
+  }
+
+  async readMessages(): Promise<Message[]> {
+    return readJsonl<Message>(this.paths.messages);
   }
 }
 
@@ -281,6 +346,7 @@ export class AgentCoordinator {
         version: 1,
         tasks: [],
         agents: [],
+        handoffs: [],
       });
     }
     await ensureJsonl(this.paths.events);
@@ -594,6 +660,145 @@ export class AgentCoordinator {
     return message;
   }
 
+  async requestHandoff(input: RequestHandoffInput): Promise<HandoffRequest> {
+    return this.mutate(`request handoff for ${input.taskId}`, async (state) => {
+      const task = getTask(state, input.taskId);
+      const requestedScopes = normalizeLockScopes(
+        undefined,
+        input.filesGlobs ?? task.filesGlobs,
+      );
+      const conflicts = findConflicts(state.tasks, requestedScopes, task.id);
+      const owner = conflicts[0];
+      const now = timestamp();
+      const handoff: HandoffRequest = {
+        id: randomId("handoff"),
+        status: "requested",
+        taskId: task.id,
+        taskDisplayId: task.displayId,
+        requestedByAgent: input.agent,
+        requestedByAgentInstanceId: input.agentInstanceId,
+        requestedByThreadId: input.threadId,
+        ownerTaskId: owner?.taskId,
+        ownerTaskDisplayId: owner?.taskDisplayId,
+        ownerAgent: owner?.agent,
+        ownerAgentInstanceId: owner?.agentInstanceId,
+        ownerThreadId: owner?.threadId,
+        filesGlobs: input.filesGlobs ?? task.filesGlobs,
+        reason: input.reason,
+        createdAt: now,
+        updatedAt: now,
+      };
+      state.handoffs.push(handoff);
+      await this.appendEvent({
+        taskId: task.id,
+        taskDisplayId: task.displayId,
+        agent: input.agent,
+        agentInstanceId: input.agentInstanceId,
+        threadId: input.threadId,
+        type: "handoff.requested",
+        message: input.reason,
+        data: { handoff },
+      });
+      await this.storage.appendMessage({
+        id: randomId("msg"),
+        at: now,
+        fromAgent: input.agent,
+        fromAgentInstanceId: input.agentInstanceId,
+        fromThreadId: input.threadId,
+        toThreadId: owner?.threadId,
+        taskId: task.id,
+        text: `Handoff requested for ${handoff.filesGlobs.join(", ")}: ${input.reason}`,
+      });
+      return handoff;
+    });
+  }
+
+  async respondHandoff(input: RespondHandoffInput): Promise<HandoffRequest> {
+    return this.mutate(`respond handoff ${input.handoffId}`, async (state) => {
+      const handoff = getHandoff(state, input.handoffId);
+      const now = timestamp();
+      handoff.status = input.status;
+      handoff.response = input.response;
+      handoff.updatedAt = now;
+      if (input.status === "handoff_now" && handoff.ownerTaskId) {
+        const ownerTask = getTask(state, handoff.ownerTaskId);
+        ownerTask.leaseExpiresAt = undefined;
+        ownerTask.updatedAt = now;
+        if (ownerTask.status !== "done" && ownerTask.status !== "blocked") {
+          ownerTask.status = "todo";
+        }
+      }
+      await this.appendEvent({
+        taskId: handoff.taskId,
+        taskDisplayId: handoff.taskDisplayId,
+        agent: input.agent,
+        agentInstanceId: input.agentInstanceId,
+        threadId: input.threadId,
+        type: `handoff.${input.status}`,
+        message: input.response ?? input.status,
+        data: { handoff },
+      });
+      await this.storage.appendMessage({
+        id: randomId("msg"),
+        at: now,
+        fromAgent: input.agent ?? handoff.ownerAgent ?? "unknown",
+        fromAgentInstanceId:
+          input.agentInstanceId ?? handoff.ownerAgentInstanceId,
+        fromThreadId: input.threadId ?? handoff.ownerThreadId,
+        toThreadId: handoff.requestedByThreadId,
+        taskId: handoff.taskId,
+        text: `Handoff ${input.status}: ${input.response ?? ""}`.trim(),
+      });
+      return handoff;
+    });
+  }
+
+  async listHandoffs(status?: HandoffStatus): Promise<HandoffRequest[]> {
+    const state = await this.readState();
+    return status
+      ? state.handoffs.filter((handoff) => handoff.status === status)
+      : state.handoffs;
+  }
+
+  async explain(input: {
+    taskId?: string;
+    commit?: string;
+  }): Promise<ExplainResult> {
+    await this.ensureInitialized();
+    const state = await this.storage.readState();
+    const events = await this.storage.readEvents();
+    const messages = await this.storage.readMessages();
+    const commit = input.commit
+      ? await readCommitExplanation(this.paths.root, input.commit)
+      : undefined;
+    const trailerTaskId = commit?.trailers["Agent-Task"];
+    const taskLookup = input.taskId ?? trailerTaskId;
+    const task = taskLookup ? getTask(state, taskLookup) : undefined;
+    const taskIds = new Set([task?.id, task?.displayId].filter(Boolean));
+    const relatedEvents = events.filter(
+      (event) =>
+        !task || taskIds.has(event.taskId) || taskIds.has(event.taskDisplayId),
+    );
+    const relatedMessages = messages.filter(
+      (message) => !task || taskIds.has(message.taskId),
+    );
+    const handoffs = state.handoffs.filter(
+      (handoff) =>
+        !task ||
+        taskIds.has(handoff.taskId) ||
+        taskIds.has(handoff.taskDisplayId) ||
+        taskIds.has(handoff.ownerTaskId) ||
+        taskIds.has(handoff.ownerTaskDisplayId),
+    );
+    return {
+      task,
+      commit,
+      events: relatedEvents,
+      messages: relatedMessages,
+      handoffs,
+    };
+  }
+
   async exportSnapshot(): Promise<string> {
     await this.ensureInitialized(false);
     const config = existsSync(this.paths.config)
@@ -601,7 +806,12 @@ export class AgentCoordinator {
       : defaultConfig(this.paths.root);
     const state = existsSync(this.paths.state)
       ? await this.storage.readState()
-      : ({ version: 1, tasks: [], agents: [] } satisfies CoordinatorState);
+      : ({
+          version: 1,
+          tasks: [],
+          agents: [],
+          handoffs: [],
+        } satisfies CoordinatorState);
     const snapshot = renderSnapshot(config, state);
     const snapshotPath = path.join(this.paths.root, config.snapshotPath);
     await mkdir(path.dirname(snapshotPath), { recursive: true });
@@ -770,6 +980,32 @@ export class AgentCoordinator {
     return { ...base, ok, stagedFiles, gitIdentity, missingTrailers };
   }
 
+  async installHooks(agentInstanceEnv = "AGENT_COORDINATOR_INSTANCE"): Promise<{
+    preCommit: string;
+    commitMsg: string;
+  }> {
+    const gitDir = (
+      await execFileAsync("git", ["rev-parse", "--git-dir"], {
+        cwd: this.paths.root,
+      })
+    ).stdout.trim();
+    const hooksDir = path.resolve(this.paths.root, gitDir, "hooks");
+    await mkdir(hooksDir, { recursive: true });
+    const preCommit = path.join(hooksDir, "pre-commit");
+    const commitMsg = path.join(hooksDir, "commit-msg");
+    await writeFile(
+      preCommit,
+      `#!/bin/sh\nagent-coordinator verify-commit --agent-instance "$${agentInstanceEnv}"\n`,
+    );
+    await writeFile(
+      commitMsg,
+      `#!/bin/sh\nagent-coordinator verify-commit --agent-instance "$${agentInstanceEnv}" --message-file "$1"\n`,
+    );
+    await chmod(preCommit, 0o755);
+    await chmod(commitMsg, 0o755);
+    return { preCommit, commitMsg };
+  }
+
   private async verifyFiles(
     files: string[],
     input: VerifyWorktreeInput,
@@ -927,6 +1163,7 @@ function normalizeState(input: Partial<CoordinatorState>): CoordinatorState {
     version: 1,
     tasks,
     agents: input.agents ?? [],
+    handoffs: input.handoffs ?? [],
     gitIdentityBackup: input.gitIdentityBackup,
   };
 }
@@ -937,6 +1174,12 @@ function getTask(state: CoordinatorState, id: string): Task {
   );
   if (!task) throw new Error(`Task not found: ${id}`);
   return task;
+}
+
+function getHandoff(state: CoordinatorState, id: string): HandoffRequest {
+  const handoff = state.handoffs.find((item) => item.id === id);
+  if (!handoff) throw new Error(`Handoff not found: ${id}`);
+  return handoff;
 }
 
 function stableTaskId(input?: string): string {
@@ -1277,6 +1520,31 @@ async function readGitIdentity(
   return { name, email };
 }
 
+async function readCommitExplanation(
+  root: string,
+  sha: string,
+): Promise<{ sha: string; subject: string; trailers: Record<string, string> }> {
+  const message = (
+    await execFileAsync("git", ["show", "-s", "--format=%B", sha], {
+      cwd: root,
+    })
+  ).stdout.trimEnd();
+  const resolvedSha = (
+    await execFileAsync("git", ["rev-parse", sha], { cwd: root })
+  ).stdout.trim();
+  const [subject = ""] = message.split("\n");
+  return { sha: resolvedSha, subject, trailers: parseTrailers(message) };
+}
+
+function parseTrailers(message: string): Record<string, string> {
+  const trailers: Record<string, string> = {};
+  for (const line of message.split("\n")) {
+    const match = /^([A-Za-z][A-Za-z-]*):\s+(.+)$/u.exec(line.trim());
+    if (match) trailers[match[1] as string] = match[2] as string;
+  }
+  return trailers;
+}
+
 function missingCommitTrailers(message?: string): string[] {
   if (!message) return [];
   return ["Agent:", "Agent-Task:"].filter(
@@ -1288,6 +1556,16 @@ function missingCommitTrailers(message?: string): string[] {
 async function readJson<T>(filePath: string): Promise<T> {
   const raw = await readFile(filePath, "utf8");
   return JSON.parse(raw) as T;
+}
+
+async function readJsonl<T>(filePath: string): Promise<T[]> {
+  if (!existsSync(filePath)) return [];
+  const raw = await readFile(filePath, "utf8");
+  return raw
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => JSON.parse(line) as T);
 }
 
 async function writeJsonAtomic(
