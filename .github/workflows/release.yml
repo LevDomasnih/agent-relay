@@ -29,8 +29,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && 'main' || github.ref }}
           fetch-depth: 0
+
+      - name: Checkout release tag
+        run: |
+          set -euo pipefail
+
+          case "$RELEASE_TAG" in
+            v*) normalized_tag="$RELEASE_TAG" ;;
+            *) normalized_tag="v$RELEASE_TAG" ;;
+          esac
+
+          git fetch --force --tags
+          git checkout --force "refs/tags/$normalized_tag"
+          echo "RELEASE_TAG=$normalized_tag" >> "$GITHUB_ENV"
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -53,10 +66,6 @@ jobs:
       - name: Verify tag and package versions
         run: |
           set -euo pipefail
-          case "$RELEASE_TAG" in
-            v*) ;;
-            *) echo "Release tag must start with v: $RELEASE_TAG" >&2; exit 1 ;;
-          esac
 
           tag_version="${RELEASE_TAG#v}"
           root_version="$(node -p "JSON.parse(require('fs').readFileSync('package.json','utf8')).version")"
