@@ -101,9 +101,9 @@ For a distributed team, run the hosted sync backend and initialize each checkout
 against the same team/project namespace:
 
 ```bash
-AGENT_RELAY_SERVER_TOKEN=secret agent-relay-server
+AGENT_RELAY_SERVER_TOKEN="<set-a-local-token>" agent-relay-server
 
-AGENT_RELAY_TOKEN=secret agent-relay init \
+AGENT_RELAY_TOKEN="<set-a-local-token>" agent-relay init \
   --storage remote \
   --remote-url http://localhost:3737 \
   --team platform \
@@ -464,7 +464,7 @@ MCP tools, and verification) use the remote team/project state.
 Run the backend:
 
 ```bash
-AGENT_RELAY_SERVER_TOKEN=secret \
+AGENT_RELAY_SERVER_TOKEN="<set-a-local-token>" \
 AGENT_RELAY_SERVER_DATA_DIR=.agent-relay-server \
 agent-relay-server
 ```
@@ -490,8 +490,8 @@ Auth is Bearer-token based. For one admin token, set
 
 ```json
 {
-  "platform-admin-token": { "team": "platform", "role": "admin" },
-  "platform-read-token": { "team": "platform", "role": "read" }
+  "<admin-token>": { "team": "platform", "role": "admin" },
+  "<read-token>": { "team": "platform", "role": "read" }
 }
 ```
 

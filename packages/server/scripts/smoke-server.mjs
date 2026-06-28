@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
 import { mkdtemp } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -9,7 +10,7 @@ const packageRoot = path.resolve(import.meta.dirname, "..");
 const repoRoot = path.resolve(packageRoot, "../..");
 const server = path.join(packageRoot, "dist/index.js");
 const cli = path.join(repoRoot, "packages/cli/dist/index.js");
-const token = "server-smoke-token";
+const token = `smoke-${randomUUID()}`;
 const port = 3977 + Math.floor(Math.random() * 1000);
 const remoteUrl = `http://127.0.0.1:${port}`;
 

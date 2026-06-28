@@ -8,7 +8,7 @@ storage API used by `@agent-relay/core`.
 ## Run
 
 ```bash
-AGENT_RELAY_SERVER_TOKEN=secret \
+AGENT_RELAY_SERVER_TOKEN="<set-a-local-token>" \
 AGENT_RELAY_SERVER_DATA_DIR=.agent-relay-server \
 agent-relay-server
 ```
@@ -16,7 +16,7 @@ agent-relay-server
 Then initialize a project against the backend:
 
 ```bash
-AGENT_RELAY_TOKEN=secret agent-relay init \
+AGENT_RELAY_TOKEN="<set-a-local-token>" agent-relay init \
   --storage remote \
   --remote-url http://localhost:3737 \
   --team my-team \
