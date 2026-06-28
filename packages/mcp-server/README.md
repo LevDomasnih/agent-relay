@@ -3,7 +3,33 @@
 MCP server for Agent Relay. It exposes project-local coordination tools to
 Codex, Claude, Cursor, and other Model Context Protocol clients.
 
-## Install
+## Install From Source
+
+Until npm publishing is enabled:
+
+```bash
+git clone https://github.com/LevDomasnih/agent-relay.git
+cd agent-relay
+pnpm install
+pnpm run build
+```
+
+Codex MCP configuration:
+
+```json
+{
+  "mcpServers": {
+    "agent-relay": {
+      "command": "node",
+      "args": [
+        "/absolute/path/to/agent-relay/packages/mcp-server/dist/index.js"
+      ]
+    }
+  }
+}
+```
+
+## Install From npm
 
 ```bash
 npm install -g @agent-relay/mcp-server

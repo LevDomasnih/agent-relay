@@ -32,12 +32,56 @@ platform is too much.
 | Let agents ask each other for handoff     | Handoff requests, directed messages, broadcasts       |
 | Keep work explainable after thread resume | Events, inbox history, snapshots, and commit trailers |
 | Start local, grow into a team setup       | JSON, SQLite, or hosted remote storage behind one API |
-| Use CLI or MCP clients                    | Same protocol through terminal commands and MCP tools |
+| Use Codex as the main client              | Install as an MCP server, use CLI only when useful    |
 
-## Install
+## Install In Codex As MCP
 
-npm publishing is pending until the final public package scope is available or
-renamed. For now, run from source:
+This is the intended client experience: Codex gets Agent Relay as an MCP server,
+and agents call tools like `create_task`, `claim_task`, `post_message`,
+`verify_worktree`, and `request_handoff`.
+
+Until npm publishing is enabled, build Agent Relay once:
+
+```bash
+git clone https://github.com/LevDomasnih/agent-relay.git
+cd agent-relay
+pnpm install
+pnpm run build
+```
+
+Then add the MCP server to Codex with an absolute path:
+
+```json
+{
+  "mcpServers": {
+    "agent-relay": {
+      "command": "node",
+      "args": [
+        "/absolute/path/to/agent-relay/packages/mcp-server/dist/index.js"
+      ]
+    }
+  }
+}
+```
+
+After npm publishing, the config becomes:
+
+```json
+{
+  "mcpServers": {
+    "agent-relay": {
+      "command": "npx",
+      "args": ["@agent-relay/mcp-server"]
+    }
+  }
+}
+```
+
+Most MCP tools accept optional `root`. When the MCP client supports tool
+arguments, pass the repository root explicitly so state is written to the right
+project.
+
+## CLI Install
 
 ```bash
 git clone https://github.com/LevDomasnih/agent-relay.git
@@ -47,11 +91,13 @@ pnpm run build
 pnpm --filter @agent-relay/cli agent-relay --help
 ```
 
-Once packages are published, the intended CLI flow is:
+The CLI is still useful for hooks, local checks, shell completions, and manual
+debugging:
 
 ```bash
-npx @agent-relay/cli init
-npx @agent-relay/cli doctor
+agent-relay init
+agent-relay doctor
+agent-relay verify-worktree --agent-instance agent_123
 ```
 
 ## 60-Second Workflow
