@@ -34,6 +34,20 @@ platform is too much.
 | Start local, grow into a team setup       | JSON, SQLite, or hosted remote storage behind one API |
 | Use Codex as the main client              | Install as an MCP server, use CLI only when useful    |
 
+## Two Ways To Use It
+
+**MCP-first, for Codex and other agents.** Add `agent-relay` as an MCP server,
+then ask the agent to initialize or coordinate the current repo. The agent calls
+tools such as `init_project`, `create_task`, `claim_task`, `verify_worktree`,
+`post_message`, and `request_handoff`.
+
+**CLI, for humans and automation.** Use `agent-relay` in a terminal for manual
+setup, diagnostics, git hooks, CI checks, shell completions, and debugging.
+
+Both paths use the same coordinator state and the same protocol. You can start
+with MCP and still run CLI checks later, or initialize with CLI and let Codex
+continue through MCP.
+
 ## Install In Codex As MCP
 
 This is the intended client experience: Codex gets Agent Relay as an MCP server,
@@ -100,7 +114,7 @@ agent-relay doctor
 agent-relay verify-worktree --agent-instance agent_123
 ```
 
-## 60-Second Workflow
+## 60-Second CLI Workflow
 
 ```bash
 agent-relay init

@@ -3,6 +3,9 @@
 MCP server for Agent Relay. It exposes project-local coordination tools to
 Codex, Claude, Cursor, and other Model Context Protocol clients.
 
+This is the intended agent-native install path. Use `@agent-relay/cli` only
+when you want terminal commands, git hooks, CI checks, or local debugging.
+
 ## Install From Source
 
 Until npm publishing is enabled:
