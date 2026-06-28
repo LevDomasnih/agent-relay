@@ -22,7 +22,7 @@ importers:
 
   packages/cli:
     dependencies:
-      "@agent-relay/core":
+      "@coordinaut/core":
         specifier: 0.1.5
         version: link:../core
       commander:
@@ -37,7 +37,7 @@ importers:
 
   packages/mcp-server:
     dependencies:
-      "@agent-relay/core":
+      "@coordinaut/core":
         specifier: 0.1.5
         version: link:../core
       "@modelcontextprotocol/sdk":
@@ -49,7 +49,7 @@ importers:
 
   packages/server:
     dependencies:
-      "@agent-relay/core":
+      "@coordinaut/core":
         specifier: 0.1.5
         version: link:../core
 

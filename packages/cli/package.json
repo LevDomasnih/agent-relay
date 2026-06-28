@@ -1,18 +1,18 @@
 {
-  "name": "@agent-relay/cli",
+  "name": "@coordinaut/cli",
   "version": "0.1.5",
-  "description": "CLI for Agent Relay.",
+  "description": "CLI for Coordinaut.",
   "type": "module",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/LevDomasnih/agent-relay.git",
+    "url": "git+https://github.com/LevDomasnih/coordinaut.git",
     "directory": "packages/cli"
   },
   "bugs": {
-    "url": "https://github.com/LevDomasnih/agent-relay/issues"
+    "url": "https://github.com/LevDomasnih/coordinaut/issues"
   },
-  "homepage": "https://github.com/LevDomasnih/agent-relay#readme",
+  "homepage": "https://github.com/LevDomasnih/coordinaut#readme",
   "keywords": [
     "ai-agents",
     "coding-agents",
@@ -22,7 +22,7 @@
     "git"
   ],
   "bin": {
-    "agent-relay": "dist/index.js"
+    "coordinaut": "dist/index.js"
   },
   "files": [
     "dist/**/*.js",
@@ -40,7 +40,7 @@
     "check": "tsc -b --pretty false"
   },
   "dependencies": {
-    "@agent-relay/core": "0.1.5",
+    "@coordinaut/core": "0.1.5",
     "commander": "^14.0.2"
   }
 }

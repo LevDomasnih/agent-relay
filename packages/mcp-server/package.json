@@ -1,18 +1,18 @@
 {
-  "name": "@agent-relay/mcp-server",
+  "name": "@coordinaut/mcp-server",
   "version": "0.1.5",
-  "description": "MCP server for Agent Relay.",
+  "description": "MCP server for Coordinaut.",
   "type": "module",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/LevDomasnih/agent-relay.git",
+    "url": "git+https://github.com/LevDomasnih/coordinaut.git",
     "directory": "packages/mcp-server"
   },
   "bugs": {
-    "url": "https://github.com/LevDomasnih/agent-relay/issues"
+    "url": "https://github.com/LevDomasnih/coordinaut/issues"
   },
-  "homepage": "https://github.com/LevDomasnih/agent-relay#readme",
+  "homepage": "https://github.com/LevDomasnih/coordinaut#readme",
   "keywords": [
     "ai-agents",
     "coding-agents",
@@ -22,7 +22,7 @@
     "git"
   ],
   "bin": {
-    "agent-relay-mcp": "dist/index.js"
+    "coordinaut-mcp": "dist/index.js"
   },
   "files": [
     "dist/**/*.js",
@@ -41,7 +41,7 @@
     "smoke": "node scripts/smoke-mcp.mjs"
   },
   "dependencies": {
-    "@agent-relay/core": "0.1.5",
+    "@coordinaut/core": "0.1.5",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "zod": "^4.1.13"
   }

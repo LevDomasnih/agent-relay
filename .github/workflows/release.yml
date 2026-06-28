@@ -106,10 +106,10 @@ jobs:
             pnpm --filter "$package_name" publish --access public --provenance --no-git-checks
           }
 
-          publish_if_needed "@agent-relay/core" "packages/core/package.json"
-          publish_if_needed "@agent-relay/cli" "packages/cli/package.json"
-          publish_if_needed "@agent-relay/mcp-server" "packages/mcp-server/package.json"
-          publish_if_needed "@agent-relay/server" "packages/server/package.json"
+          publish_if_needed "@coordinaut/core" "packages/core/package.json"
+          publish_if_needed "@coordinaut/cli" "packages/cli/package.json"
+          publish_if_needed "@coordinaut/mcp-server" "packages/mcp-server/package.json"
+          publish_if_needed "@coordinaut/server" "packages/server/package.json"
 
       - name: Create or update GitHub Release
         env:
@@ -118,10 +118,10 @@ jobs:
           set -euo pipefail
 
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            gh release edit "$RELEASE_TAG" --title "Agent Relay $RELEASE_TAG" --latest
+            gh release edit "$RELEASE_TAG" --title "Coordinaut $RELEASE_TAG" --latest
           else
             gh release create "$RELEASE_TAG" \
-              --title "Agent Relay $RELEASE_TAG" \
+              --title "Coordinaut $RELEASE_TAG" \
               --generate-notes \
               --verify-tag \
               --latest

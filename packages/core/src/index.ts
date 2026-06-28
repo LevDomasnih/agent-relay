@@ -790,7 +790,7 @@ export class AgentCoordinator {
       version: CURRENT_STATE_VERSION,
       projectName,
       defaultLeaseMinutes: 120,
-      snapshotPath: ".agent-relay/snapshots/TASKS.md",
+      snapshotPath: ".coordinaut/snapshots/TASKS.md",
       stateDir: options.stateDir,
       storage: options.storage,
     };
@@ -1432,7 +1432,7 @@ export class AgentCoordinator {
     const safeThread = threadId
       ? sanitizeEmailPart(threadId)
       : "unknown-thread";
-    const email = `codex+${safeThread}@agent-relay.local`;
+    const email = `codex+${safeThread}@coordinaut.local`;
     const previous = await readGitIdentity(this.paths.root);
     await this.mutate("save git identity backup", async (state) => {
       if (!state.gitIdentityBackup) {
@@ -1537,7 +1537,7 @@ export class AgentCoordinator {
       ok: existsSync(this.paths.config),
       message: existsSync(this.paths.config)
         ? this.paths.config
-        : "missing .agent-relay/config.json",
+        : "missing .coordinaut/config.json",
     });
     checks.push({
       name: "state dir",
@@ -1573,7 +1573,7 @@ export class AgentCoordinator {
           "packages/mcp-server/package.json",
         );
         if (existsSync(pkg)) return "workspace MCP package present";
-        return "install @agent-relay/mcp-server for MCP usage";
+        return "install @coordinaut/mcp-server for MCP usage";
       }),
     );
     const config = existsSync(this.paths.config)
@@ -1614,8 +1614,8 @@ export class AgentCoordinator {
     const identity = await readGitIdentity(this.paths.root);
     checks.push({
       name: "git identity",
-      ok: !identity.email?.endsWith("@agent-relay.local"),
-      message: identity.email?.endsWith("@agent-relay.local")
+      ok: !identity.email?.endsWith("@coordinaut.local"),
+      message: identity.email?.endsWith("@coordinaut.local")
         ? `agent identity still active: ${identity.name} <${identity.email}>`
         : `${identity.name ?? "(unset)"} <${identity.email ?? "unset"}>`,
     });
@@ -1692,7 +1692,7 @@ export class AgentCoordinator {
     return { ok, range: input.range, commits: checked };
   }
 
-  async installHooks(agentInstanceEnv = "AGENT_RELAY_INSTANCE"): Promise<{
+  async installHooks(agentInstanceEnv = "COORDINAUT_INSTANCE"): Promise<{
     preCommit: string;
     commitMsg: string;
   }> {
@@ -1707,11 +1707,11 @@ export class AgentCoordinator {
     const commitMsg = path.join(hooksDir, "commit-msg");
     await writeFile(
       preCommit,
-      `#!/bin/sh\nagent-relay verify-commit --agent-instance "$${agentInstanceEnv}"\n`,
+      `#!/bin/sh\ncoordinaut verify-commit --agent-instance "$${agentInstanceEnv}"\n`,
     );
     await writeFile(
       commitMsg,
-      `#!/bin/sh\nagent-relay verify-commit --agent-instance "$${agentInstanceEnv}" --message-file "$1"\n`,
+      `#!/bin/sh\ncoordinaut verify-commit --agent-instance "$${agentInstanceEnv}" --message-file "$1"\n`,
     );
     await chmod(preCommit, 0o755);
     await chmod(commitMsg, 0o755);
@@ -1747,7 +1747,7 @@ export class AgentCoordinator {
     const next: string[] = [];
     if (unclaimedFiles.length > 0) {
       next.push(
-        `claim files: agent-relay claim --task <task> --files "${unclaimedFiles.join(",")}"`,
+        `claim files: coordinaut claim --task <task> --files "${unclaimedFiles.join(",")}"`,
       );
     }
     if (conflictingFiles.length > 0) {
@@ -1793,7 +1793,7 @@ export class AgentCoordinator {
   private async ensureInitialized(requireState = true): Promise<void> {
     if (!existsSync(this.paths.dir)) {
       if (requireState) {
-        throw new Error(`Agent Relay is not initialized in ${this.paths.root}`);
+        throw new Error(`Coordinaut is not initialized in ${this.paths.root}`);
       }
       await mkdir(this.paths.dir, { recursive: true });
     }
@@ -1801,7 +1801,7 @@ export class AgentCoordinator {
       requireState &&
       (!existsSync(this.paths.config) || !(await this.storage.hasState()))
     ) {
-      throw new Error(`Agent Relay is not initialized in ${this.paths.root}`);
+      throw new Error(`Coordinaut is not initialized in ${this.paths.root}`);
     }
   }
 
@@ -1815,6 +1815,8 @@ export class AgentCoordinator {
 export async function findProjectRoot(start = process.cwd()): Promise<string> {
   let current = path.resolve(start);
   while (true) {
+    if (existsSync(path.join(current, ".coordinaut", "config.json")))
+      return current;
     if (existsSync(path.join(current, ".agent-relay", "config.json")))
       return current;
     if (existsSync(path.join(current, ".agent-coordinator", "config.json")))
@@ -1845,13 +1847,15 @@ export function createPaths(
 }
 
 function resolveCoordinatorDir(root: string): string {
-  const currentDir = path.join(root, ".agent-relay");
-  const legacyDir = path.join(root, ".agent-coordinator");
-  if (
-    !existsSync(currentDir) &&
-    existsSync(path.join(legacyDir, "config.json"))
-  )
-    return legacyDir;
+  const currentDir = path.join(root, ".coordinaut");
+  const legacyRelayDir = path.join(root, ".agent-relay");
+  const legacyCoordinatorDir = path.join(root, ".agent-coordinator");
+  if (!existsSync(currentDir)) {
+    if (existsSync(path.join(legacyRelayDir, "config.json")))
+      return legacyRelayDir;
+    if (existsSync(path.join(legacyCoordinatorDir, "config.json")))
+      return legacyCoordinatorDir;
+  }
   return currentDir;
 }
 
@@ -1860,7 +1864,7 @@ function defaultConfig(root: string): CoordinatorConfig {
     version: 1,
     projectName: path.basename(root),
     defaultLeaseMinutes: 120,
-    snapshotPath: ".agent-relay/snapshots/TASKS.md",
+    snapshotPath: ".coordinaut/snapshots/TASKS.md",
   };
 }
 
@@ -1889,7 +1893,7 @@ function resolveStateDir(
 ): string {
   const configured =
     stateDirInput ??
-    process.env.AGENT_RELAY_STATE_DIR ??
+    process.env.COORDINAUT_STATE_DIR ??
     process.env.AGENT_COORDINATOR_STATE_DIR ??
     readConfiguredStateDir(defaultDir);
   if (!configured) return defaultDir;
@@ -1964,7 +1968,7 @@ function normalizeStorageOptions(
 function remoteAuthHeaders(
   options: Extract<StorageOptions, { type: "remote" }>,
 ): Record<string, string> {
-  const token = options.token ?? process.env.AGENT_RELAY_TOKEN;
+  const token = options.token ?? process.env.COORDINAUT_TOKEN;
   return token ? { authorization: `Bearer ${token}` } : {};
 }
 
@@ -2320,12 +2324,12 @@ function renderSnapshot(
   state: CoordinatorState,
 ): string {
   const lines = [
-    `# Agent Relay Snapshot`,
+    `# Coordinaut Snapshot`,
     ``,
     `Project: ${config.projectName}`,
     `Generated: ${timestamp()}`,
     ``,
-    `Generated. Do not edit. Source of truth: .agent-relay/state.json and events.jsonl.`,
+    `Generated. Do not edit. Source of truth: .coordinaut/state.json and events.jsonl.`,
     ``,
   ];
   for (const status of TASK_STATUSES) {

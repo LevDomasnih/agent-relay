@@ -1,18 +1,18 @@
 {
-  "name": "@agent-relay/server",
+  "name": "@coordinaut/server",
   "version": "0.1.5",
-  "description": "Hosted sync backend for Agent Relay teams.",
+  "description": "Hosted sync backend for Coordinaut teams.",
   "type": "module",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/LevDomasnih/agent-relay.git",
+    "url": "git+https://github.com/LevDomasnih/coordinaut.git",
     "directory": "packages/server"
   },
   "bugs": {
-    "url": "https://github.com/LevDomasnih/agent-relay/issues"
+    "url": "https://github.com/LevDomasnih/coordinaut/issues"
   },
-  "homepage": "https://github.com/LevDomasnih/agent-relay#readme",
+  "homepage": "https://github.com/LevDomasnih/coordinaut#readme",
   "keywords": [
     "ai-agents",
     "coding-agents",
@@ -22,7 +22,7 @@
     "sqlite"
   ],
   "bin": {
-    "agent-relay-server": "dist/index.js"
+    "coordinaut-server": "dist/index.js"
   },
   "files": [
     "dist/**/*.js",
@@ -41,6 +41,6 @@
     "smoke": "node scripts/smoke-server.mjs"
   },
   "dependencies": {
-    "@agent-relay/core": "0.1.5"
+    "@coordinaut/core": "0.1.5"
   }
 }

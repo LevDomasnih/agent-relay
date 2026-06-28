@@ -1,5 +1,9 @@
 node_modules/
 dist/
+.coordinaut/state.json
+.coordinaut/events.jsonl
+.coordinaut/messages.jsonl
+.coordinaut/*.lock
 .agent-relay/state.json
 .agent-relay/events.jsonl
 .agent-relay/messages.jsonl

@@ -12,14 +12,14 @@ import {
   type MessageKind,
   type StorageOptions,
   type TaskStatus,
-} from "@agent-relay/core";
+} from "@coordinaut/core";
 import { z } from "zod";
 
 const require = createRequire(import.meta.url);
 const packageJson = require("../package.json") as { version: string };
 
 const server = new McpServer({
-  name: "agent-relay",
+  name: "coordinaut",
   version: packageJson.version,
 });
 
@@ -67,7 +67,7 @@ server.registerTool(
   "init_project",
   {
     title: "Initialize Project",
-    description: "Initialize Agent Relay in the current project.",
+    description: "Initialize Coordinaut in the current project.",
     inputSchema: z.object({
       projectName: z.string().optional(),
       stateDir: z.string().optional(),
@@ -721,6 +721,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((error: unknown) => {
-  console.error("Fatal error in agent-relay MCP server:", error);
+  console.error("Fatal error in coordinaut MCP server:", error);
   process.exit(1);
 });

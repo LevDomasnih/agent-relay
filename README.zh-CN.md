@@ -1,4 +1,4 @@
-# Agent Relay
+# Coordinaut
 
 [English](README.md) · [Русский](README.ru.md) · [简体中文](README.zh-CN.md) ·
 [Deutsch](README.de.md) · [Español](README.es.md) ·
@@ -6,23 +6,23 @@
 
 在同一个 git 仓库中协调多个 AI coding agents。
 
-Agent Relay 为 Codex、Claude Code、Cursor 和其他 coding agents 提供一个
+Coordinaut 为 Codex、Claude Code、Cursor 和其他 coding agents 提供一个
 project-local 协议：任务归属、scoped locks、leases、handoffs、消息、校验、
 Markdown snapshots 和 git attribution。
 
 它位于“所有 agent 手动编辑 `AGENT_TASKS.md`”和“需要完整托管编排平台”之间。
 
 ```text
-agent-relay claim --task AGT-20260628-001 --agent frontend-codex --files "src/pages/settings/**"
-agent-relay verify-worktree --agent-instance agent_123
-agent-relay release --task AGT-20260628-001 --reason "iteration finished"
+coordinaut claim --task AGT-20260628-001 --agent frontend-codex --files "src/pages/settings/**"
+coordinaut verify-worktree --agent-instance agent_123
+coordinaut release --task AGT-20260628-001 --reason "iteration finished"
 ```
 
 ## 解决什么问题
 
 Markdown task board 对人友好，但对并行 agent 很脆弱。
 
-| 没有 coordinator                | 使用 Agent Relay                        |
+| 没有 coordinator                | 使用 Coordinaut                         |
 | ------------------------------- | --------------------------------------- |
 | 两个 agent 可能同时修改同一文件 | 重叠的 active claims 会返回 conflict    |
 | 已退出的 agent 留下 stale lock  | Lease 会过期，takeover 必须给出 reason  |
@@ -34,7 +34,7 @@ Markdown task board 对人友好，但对并行 agent 很脆弱。
 State 保存在项目内：
 
 ```text
-.agent-relay/
+.coordinaut/
   config.json
   state.json
   events.jsonl
@@ -47,25 +47,25 @@ State 保存在项目内：
 
 ## 状态
 
-Agent Relay 已经具备从源码发布第一个公开版本的基础。CLI、core package、MCP server、hosted sync server、JSON/SQLite/remote storage adapters、state migrations、CI checks、package dry-runs、CLI smoke test、真实 MCP client smoke test 和 hosted server smoke test 都已实现并验证。
+Coordinaut 已经具备从源码发布第一个公开版本的基础。CLI、core package、MCP server、hosted sync server、JSON/SQLite/remote storage adapters、state migrations、CI checks、package dry-runs、CLI smoke test、真实 MCP client smoke test 和 hosted server smoke test 都已实现并验证。
 
 npm publishing 暂时等待最终公开 package scope 或 rename。
 
 通过 `npx` 运行 CLI：
 
 ```bash
-npx @agent-relay/cli init
-npx @agent-relay/cli doctor
+npx @coordinaut/cli init
+npx @coordinaut/cli doctor
 ```
 
 从源码使用：
 
 ```bash
-git clone https://github.com/LevDomasnih/agent-relay.git
-cd agent-relay
+git clone https://github.com/LevDomasnih/coordinaut.git
+cd coordinaut
 pnpm install
 pnpm run build
-pnpm --filter @agent-relay/cli agent-relay --help
+pnpm --filter @coordinaut/cli coordinaut --help
 ```
 
 ## 快速开始
@@ -73,20 +73,20 @@ pnpm --filter @agent-relay/cli agent-relay --help
 初始化仓库：
 
 ```bash
-agent-relay init
-agent-relay doctor
+coordinaut init
+coordinaut doctor
 ```
 
 多个 git worktree 可以使用同一个 shared state：
 
 ```bash
-agent-relay init --state-dir ../.agent-relay-shared
+coordinaut init --state-dir ../.coordinaut-shared
 ```
 
 创建任务：
 
 ```bash
-agent-relay create \
+coordinaut create \
   --title "Fix settings layout" \
   --scope "settings page" \
   --files "src/pages/settings/**"
@@ -95,7 +95,7 @@ agent-relay create \
 修改代码前先 claim：
 
 ```bash
-agent-relay claim \
+coordinaut claim \
   --task AGT-20260628-001 \
   --agent frontend-codex \
   --agent-instance agent_123 \
@@ -106,22 +106,22 @@ agent-relay claim \
 工作中保持 lease：
 
 ```bash
-agent-relay heartbeat --task AGT-20260628-001 --agent-instance agent_123
-agent-relay update --task AGT-20260628-001 --status fixing --next "patch layout drift"
+coordinaut heartbeat --task AGT-20260628-001 --agent-instance agent_123
+coordinaut update --task AGT-20260628-001 --status fixing --next "patch layout drift"
 ```
 
 handoff、commit 或 final response 前检查：
 
 ```bash
-agent-relay verify-worktree --agent-instance agent_123
+coordinaut verify-worktree --agent-instance agent_123
 ```
 
 结束一次迭代：
 
 ```bash
-agent-relay update --task AGT-20260628-001 --status verifying --next "run focused regression"
-agent-relay release --task AGT-20260628-001 --agent-instance agent_123 --reason "iteration finished"
-agent-relay snapshot
+coordinaut update --task AGT-20260628-001 --status verifying --next "run focused regression"
+coordinaut release --task AGT-20260628-001 --agent-instance agent_123 --reason "iteration finished"
+coordinaut snapshot
 ```
 
 ## Agent 协议
@@ -143,7 +143,7 @@ Markdown snapshot 给人看。真正的 source of truth 是 JSON state 和 JSONL
 需要另一个 agent 拥有的 scope 时：
 
 ```bash
-agent-relay handoff request \
+coordinaut handoff request \
   --task AGT-20260628-002 \
   --agent backend-codex \
   --agent-instance agent_456 \
@@ -154,7 +154,7 @@ agent-relay handoff request \
 Owner 回复：
 
 ```bash
-agent-relay handoff respond \
+coordinaut handoff respond \
   --id handoff_... \
   --status grant_after_commit \
   --agent frontend-codex \
@@ -168,43 +168,43 @@ agent-relay handoff respond \
 Agents 可以通过 inbox 通信：
 
 ```bash
-agent-relay message \
+coordinaut message \
   --from-agent frontend-codex \
   --from-agent-instance agent_123 \
   --to-agent-instance agent_456 \
   --kind question \
   --text "Can you take package.json after this commit?"
 
-agent-relay inbox --agent-instance agent_456
-agent-relay inbox-read --agent-instance agent_456 --messages msg_...
+coordinaut inbox --agent-instance agent_456
+coordinaut inbox-read --agent-instance agent_456 --messages msg_...
 ```
 
 也支持 broadcast、mentions、presence 和 watch：
 
 ```bash
-agent-relay message --from-agent release-codex --broadcast --kind blocker --text "Release branch is frozen."
-agent-relay presence
-agent-relay watch --limit 20
+coordinaut message --from-agent release-codex --broadcast --kind blocker --text "Release branch is frozen."
+coordinaut presence
+coordinaut watch --limit 20
 ```
 
 ## 校验和 Git Hooks
 
 ```bash
-agent-relay verify-worktree --agent-instance agent_123
-agent-relay verify-commit --agent-instance agent_123 --message-file .git/COMMIT_EDITMSG
+coordinaut verify-worktree --agent-instance agent_123
+coordinaut verify-commit --agent-instance agent_123 --message-file .git/COMMIT_EDITMSG
 ```
 
 安装 hooks：
 
 ```bash
-agent-relay install-hooks
-export AGENT_RELAY_INSTANCE=agent_123
+coordinaut install-hooks
+export COORDINAUT_INSTANCE=agent_123
 ```
 
 用于 PR/CI：
 
 ```bash
-agent-relay verify-commit-range --range "origin/main..HEAD"
+coordinaut verify-commit-range --range "origin/main..HEAD"
 ```
 
 设计原则：
@@ -216,7 +216,7 @@ MCP is the protocol. Hooks and checks are the enforcement.
 ## Git Attribution
 
 ```bash
-agent-relay git-identity \
+coordinaut git-identity \
   --agent frontend-codex \
   --agent-instance agent_123 \
   --thread 019eff77 \
@@ -235,20 +235,20 @@ Agent-Task: AGT-20260628-001
 恢复之前的 git identity：
 
 ```bash
-agent-relay git-identity-reset
+coordinaut git-identity-reset
 ```
 
 ## MCP Server
 
 ```bash
-agent-relay-mcp
+coordinaut-mcp
 ```
 
 ```json
 {
   "mcpServers": {
-    "agent-relay": {
-      "command": "agent-relay-mcp",
+    "coordinaut": {
+      "command": "coordinaut-mcp",
       "args": []
     }
   }

@@ -31,7 +31,7 @@ async function callTool(client, name, args) {
 }
 
 async function main() {
-  const repo = await mkdtemp(path.join(os.tmpdir(), "agent-relay-mcp-"));
+  const repo = await mkdtemp(path.join(os.tmpdir(), "coordinaut-mcp-"));
   await run("git", ["init"], { cwd: repo });
   await run("git", ["config", "user.name", "MCP Smoke"], { cwd: repo });
   await run("git", ["config", "user.email", "mcp-smoke@example.test"], {
@@ -51,7 +51,7 @@ async function main() {
   const stderr = [];
   transport.stderr?.on("data", (chunk) => stderr.push(String(chunk)));
 
-  const client = new Client({ name: "agent-relay-smoke", version: "0.0.0" });
+  const client = new Client({ name: "coordinaut-smoke", version: "0.0.0" });
   await client.connect(transport);
 
   try {

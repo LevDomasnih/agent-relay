@@ -26,8 +26,8 @@ for (const packageJsonPath of packageJsonPaths) {
   const packageJson = JSON.parse(await readFile(packageJsonPath, "utf8"));
   packageJson.version = nextVersion;
 
-  if (packageJson.dependencies?.["@agent-relay/core"]) {
-    packageJson.dependencies["@agent-relay/core"] = nextVersion;
+  if (packageJson.dependencies?.["@coordinaut/core"]) {
+    packageJson.dependencies["@coordinaut/core"] = nextVersion;
   }
 
   await writeJson(packageJsonPath, packageJson);

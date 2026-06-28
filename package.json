@@ -1,5 +1,5 @@
 {
-  "name": "agent-relay-monorepo",
+  "name": "coordinaut-monorepo",
   "private": true,
   "version": "0.1.5",
   "description": "Project-local coordination layer for parallel AI coding agents.",
@@ -7,12 +7,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/LevDomasnih/agent-relay.git"
+    "url": "git+https://github.com/LevDomasnih/coordinaut.git"
   },
   "bugs": {
-    "url": "https://github.com/LevDomasnih/agent-relay/issues"
+    "url": "https://github.com/LevDomasnih/coordinaut/issues"
   },
-  "homepage": "https://github.com/LevDomasnih/agent-relay#readme",
+  "homepage": "https://github.com/LevDomasnih/coordinaut#readme",
   "packageManager": "pnpm@9.15.4",
   "workspaces": [
     "packages/*"
@@ -22,11 +22,11 @@
     "check": "tsc -b --pretty false packages/core packages/cli packages/mcp-server packages/server",
     "test": "node --test --import tsx packages/core/test/*.test.ts",
     "smoke:cli": "node scripts/smoke-cli.mjs",
-    "smoke:mcp": "pnpm --filter @agent-relay/mcp-server smoke",
-    "smoke:server": "pnpm --filter @agent-relay/server smoke",
+    "smoke:mcp": "pnpm --filter @coordinaut/mcp-server smoke",
+    "smoke:server": "pnpm --filter @coordinaut/server smoke",
     "format": "prettier --check .",
     "format:write": "prettier --write .",
-    "pack:dry-run": "npm pack --dry-run --json --workspace @agent-relay/core --workspace @agent-relay/cli --workspace @agent-relay/mcp-server --workspace @agent-relay/server",
+    "pack:dry-run": "npm pack --dry-run --json --workspace @coordinaut/core --workspace @coordinaut/cli --workspace @coordinaut/mcp-server --workspace @coordinaut/server",
     "release:check": "pnpm run format && pnpm run check && pnpm run test && pnpm run build && pnpm run smoke:cli && pnpm run smoke:mcp && pnpm run smoke:server && pnpm run pack:dry-run",
     "release:bump": "node scripts/bump-version.mjs"
   },

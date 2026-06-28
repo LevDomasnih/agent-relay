@@ -21,7 +21,7 @@ async function runJson(args, cwd) {
 }
 
 async function main() {
-  const repo = await mkdtemp(path.join(os.tmpdir(), "agent-relay-smoke-"));
+  const repo = await mkdtemp(path.join(os.tmpdir(), "coordinaut-smoke-"));
   await run("git", ["init"], { cwd: repo });
   await run("git", ["config", "user.name", "Smoke User"], { cwd: repo });
   await run("git", ["config", "user.email", "smoke@example.test"], {
@@ -99,7 +99,7 @@ async function main() {
 
   await runJson(["snapshot"], repo);
   const snapshot = await readFile(
-    path.join(repo, ".agent-relay/snapshots/TASKS.md"),
+    path.join(repo, ".coordinaut/snapshots/TASKS.md"),
     "utf8",
   );
   if (!snapshot.includes(taskId)) {
@@ -115,7 +115,7 @@ async function main() {
     cwd: repo,
   });
   if (
-    !completion.includes("_agent_relay_completion") ||
+    !completion.includes("_coordinaut_completion") ||
     !completion.includes("verify-worktree")
   ) {
     throw new Error("bash completion output is missing expected commands");

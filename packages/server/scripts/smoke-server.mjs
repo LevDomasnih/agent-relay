@@ -26,7 +26,7 @@ async function runJson(args, cwd) {
   return JSON.parse(
     await run(process.execPath, [cli, ...args], {
       cwd,
-      env: { AGENT_RELAY_TOKEN: token },
+      env: { COORDINAUT_TOKEN: token },
     }),
   );
 }
@@ -56,14 +56,14 @@ async function waitForHealth() {
 }
 
 async function main() {
-  const dataDir = await mkdtemp(path.join(os.tmpdir(), "agent-relay-server-"));
+  const dataDir = await mkdtemp(path.join(os.tmpdir(), "coordinaut-server-"));
   const child = execFile(process.execPath, [server], {
     cwd: repoRoot,
     env: {
       ...process.env,
-      AGENT_RELAY_SERVER_TOKEN: token,
-      AGENT_RELAY_SERVER_PORT: String(port),
-      AGENT_RELAY_SERVER_DATA_DIR: dataDir,
+      COORDINAUT_SERVER_TOKEN: token,
+      COORDINAUT_SERVER_PORT: String(port),
+      COORDINAUT_SERVER_DATA_DIR: dataDir,
     },
   });
   const stderr = [];
@@ -71,8 +71,8 @@ async function main() {
 
   try {
     await waitForHealth();
-    const repoA = await tempGitRepo("agent-relay-remote-a-");
-    const repoB = await tempGitRepo("agent-relay-remote-b-");
+    const repoA = await tempGitRepo("coordinaut-remote-a-");
+    const repoB = await tempGitRepo("coordinaut-remote-b-");
 
     await runJson(
       [

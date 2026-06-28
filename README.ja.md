@@ -1,4 +1,4 @@
-# Agent Relay
+# Coordinaut
 
 [English](README.md) · [Русский](README.ru.md) · [简体中文](README.zh-CN.md) ·
 [Deutsch](README.de.md) · [Español](README.es.md) ·
@@ -6,7 +6,7 @@
 
 1 つの git リポジトリ内で複数の AI coding agents を調整します。
 
-Agent Relay は Codex、Claude Code、Cursor などの coding agents に、
+Coordinaut は Codex、Claude Code、Cursor などの coding agents に、
 project-local な小さなプロトコルを提供します。Tasks、scoped locks、leases、
 handoffs、messages、verification checks、Markdown snapshots、git attribution を
 扱えます。
@@ -15,9 +15,9 @@ handoffs、messages、verification checks、Markdown snapshots、git attribution
 orchestration platform が必要」な状態の間にあるレイヤーです。
 
 ```text
-agent-relay claim --task AGT-20260628-001 --agent frontend-codex --files "src/pages/settings/**"
-agent-relay verify-worktree --agent-instance agent_123
-agent-relay release --task AGT-20260628-001 --reason "iteration finished"
+coordinaut claim --task AGT-20260628-001 --agent frontend-codex --files "src/pages/settings/**"
+coordinaut verify-worktree --agent-instance agent_123
+coordinaut release --task AGT-20260628-001 --reason "iteration finished"
 ```
 
 ## 解決すること
@@ -25,7 +25,7 @@ agent-relay release --task AGT-20260628-001 --reason "iteration finished"
 Markdown の task board は人には読みやすいですが、並列 agents には壊れやすい
 source of truth です。
 
-| Coordinator なし                               | Agent Relay あり                                     |
+| Coordinator なし                               | Coordinaut あり                                      |
 | ---------------------------------------------- | ---------------------------------------------------- |
 | 2 つの agents が同じファイルを黙って編集できる | 重複する active claims は conflict になる            |
 | 終了した agent の stale ownership が残る       | Leases は期限切れになり、takeover には reason が必要 |
@@ -37,7 +37,7 @@ source of truth です。
 State はプロジェクト内に保存されます。
 
 ```text
-.agent-relay/
+.coordinaut/
   config.json
   state.json
   events.jsonl
@@ -50,25 +50,25 @@ Daemon なし。Database server なし。`/tmp` state なし。
 
 ## Status
 
-Agent Relay は source から最初の public release を出せる状態です。CLI、core package、MCP server、hosted sync server、JSON/SQLite/remote storage adapters、state migrations、CI checks、package dry-runs、CLI smoke test、実際の MCP client smoke test、hosted server smoke test は実装済みで検証済みです。
+Coordinaut は source から最初の public release を出せる状態です。CLI、core package、MCP server、hosted sync server、JSON/SQLite/remote storage adapters、state migrations、CI checks、package dry-runs、CLI smoke test、実際の MCP client smoke test、hosted server smoke test は実装済みで検証済みです。
 
 npm publishing は最終的な public package scope または rename が決まるまで pending です。
 
 `npx` で CLI を実行:
 
 ```bash
-npx @agent-relay/cli init
-npx @agent-relay/cli doctor
+npx @coordinaut/cli init
+npx @coordinaut/cli doctor
 ```
 
 Source から使う:
 
 ```bash
-git clone https://github.com/LevDomasnih/agent-relay.git
-cd agent-relay
+git clone https://github.com/LevDomasnih/coordinaut.git
+cd coordinaut
 pnpm install
 pnpm run build
-pnpm --filter @agent-relay/cli agent-relay --help
+pnpm --filter @coordinaut/cli coordinaut --help
 ```
 
 ## Quick Start
@@ -76,20 +76,20 @@ pnpm --filter @agent-relay/cli agent-relay --help
 Repository を初期化:
 
 ```bash
-agent-relay init
-agent-relay doctor
+coordinaut init
+coordinaut doctor
 ```
 
 複数の git worktrees では shared state directory を使えます。
 
 ```bash
-agent-relay init --state-dir ../.agent-relay-shared
+coordinaut init --state-dir ../.coordinaut-shared
 ```
 
 Task を作成:
 
 ```bash
-agent-relay create \
+coordinaut create \
   --title "Fix settings layout" \
   --scope "settings page" \
   --files "src/pages/settings/**"
@@ -98,7 +98,7 @@ agent-relay create \
 編集前に claim:
 
 ```bash
-agent-relay claim \
+coordinaut claim \
   --task AGT-20260628-001 \
   --agent frontend-codex \
   --agent-instance agent_123 \
@@ -109,22 +109,22 @@ agent-relay claim \
 作業中:
 
 ```bash
-agent-relay heartbeat --task AGT-20260628-001 --agent-instance agent_123
-agent-relay update --task AGT-20260628-001 --status fixing --next "patch layout drift"
+coordinaut heartbeat --task AGT-20260628-001 --agent-instance agent_123
+coordinaut update --task AGT-20260628-001 --status fixing --next "patch layout drift"
 ```
 
 Handoff、commit、final response の前に確認:
 
 ```bash
-agent-relay verify-worktree --agent-instance agent_123
+coordinaut verify-worktree --agent-instance agent_123
 ```
 
 Iteration を終了:
 
 ```bash
-agent-relay update --task AGT-20260628-001 --status verifying --next "run focused regression"
-agent-relay release --task AGT-20260628-001 --agent-instance agent_123 --reason "iteration finished"
-agent-relay snapshot
+coordinaut update --task AGT-20260628-001 --status verifying --next "run focused regression"
+coordinaut release --task AGT-20260628-001 --agent-instance agent_123 --reason "iteration finished"
+coordinaut snapshot
 ```
 
 ## Agent Protocol
@@ -148,7 +148,7 @@ Markdown snapshot は人間向けです。Source of truth は JSON state と JSO
 別の agent が owner の scope が必要な場合:
 
 ```bash
-agent-relay handoff request \
+coordinaut handoff request \
   --task AGT-20260628-002 \
   --agent backend-codex \
   --agent-instance agent_456 \
@@ -159,7 +159,7 @@ agent-relay handoff request \
 Owner が応答:
 
 ```bash
-agent-relay handoff respond \
+coordinaut handoff respond \
   --id handoff_... \
   --status grant_after_commit \
   --agent frontend-codex \
@@ -173,43 +173,43 @@ Status: `grant_after_commit`, `handoff_now`, `denied`, `cancelled`。
 Agents は inbox で通信できます。
 
 ```bash
-agent-relay message \
+coordinaut message \
   --from-agent frontend-codex \
   --from-agent-instance agent_123 \
   --to-agent-instance agent_456 \
   --kind question \
   --text "Can you take package.json after this commit?"
 
-agent-relay inbox --agent-instance agent_456
-agent-relay inbox-read --agent-instance agent_456 --messages msg_...
+coordinaut inbox --agent-instance agent_456
+coordinaut inbox-read --agent-instance agent_456 --messages msg_...
 ```
 
 Broadcast、mentions、presence、watch もサポートしています。
 
 ```bash
-agent-relay message --from-agent release-codex --broadcast --kind blocker --text "Release branch is frozen."
-agent-relay presence
-agent-relay watch --limit 20
+coordinaut message --from-agent release-codex --broadcast --kind blocker --text "Release branch is frozen."
+coordinaut presence
+coordinaut watch --limit 20
 ```
 
 ## Verification と Git Hooks
 
 ```bash
-agent-relay verify-worktree --agent-instance agent_123
-agent-relay verify-commit --agent-instance agent_123 --message-file .git/COMMIT_EDITMSG
+coordinaut verify-worktree --agent-instance agent_123
+coordinaut verify-commit --agent-instance agent_123 --message-file .git/COMMIT_EDITMSG
 ```
 
 Hooks をインストール:
 
 ```bash
-agent-relay install-hooks
-export AGENT_RELAY_INSTANCE=agent_123
+coordinaut install-hooks
+export COORDINAUT_INSTANCE=agent_123
 ```
 
 PR/CI 用:
 
 ```bash
-agent-relay verify-commit-range --range "origin/main..HEAD"
+coordinaut verify-commit-range --range "origin/main..HEAD"
 ```
 
 Design rule:
@@ -221,7 +221,7 @@ MCP is the protocol. Hooks and checks are the enforcement.
 ## Git Attribution
 
 ```bash
-agent-relay git-identity \
+coordinaut git-identity \
   --agent frontend-codex \
   --agent-instance agent_123 \
   --thread 019eff77 \
@@ -240,20 +240,20 @@ Agent-Task: AGT-20260628-001
 以前の git identity に戻す:
 
 ```bash
-agent-relay git-identity-reset
+coordinaut git-identity-reset
 ```
 
 ## MCP Server
 
 ```bash
-agent-relay-mcp
+coordinaut-mcp
 ```
 
 ```json
 {
   "mcpServers": {
-    "agent-relay": {
-      "command": "agent-relay-mcp",
+    "coordinaut": {
+      "command": "coordinaut-mcp",
       "args": []
     }
   }

@@ -9,7 +9,7 @@ import {
   TASK_STATUSES,
   findProjectRoot,
   type TaskStatus,
-} from "@agent-relay/core";
+} from "@coordinaut/core";
 import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 
@@ -18,13 +18,13 @@ const packageJson = require("../package.json") as { version: string };
 const program = new Command();
 
 program
-  .name("agent-relay")
+  .name("coordinaut")
   .description("Project-local coordination for parallel AI coding agents.")
   .version(packageJson.version);
 
 program
   .command("init")
-  .description("Initialize Agent Relay in the current project.")
+  .description("Initialize Coordinaut in the current project.")
   .option("--project-name <name>", "Project name")
   .option("--state-dir <path>", "Shared state directory for worktree families")
   .option("--storage <type>", "Storage adapter: json, sqlite, or remote")
@@ -38,10 +38,7 @@ program
     "--project <project>",
     "Remote project slug when using remote storage",
   )
-  .option(
-    "--token <token>",
-    "Remote auth token; AGENT_RELAY_TOKEN is preferred",
-  )
+  .option("--token <token>", "Remote auth token; COORDINAUT_TOKEN is preferred")
   .action(
     async (options: {
       projectName?: string;
@@ -584,7 +581,7 @@ program
   .option(
     "--agent-instance-env <name>",
     "Environment variable used by hooks",
-    "AGENT_RELAY_INSTANCE",
+    "COORDINAUT_INSTANCE",
   )
   .action(async (options: { agentInstanceEnv: string }) => {
     const coordinator = await loadCoordinator();
@@ -870,27 +867,27 @@ function generateCompletionScript(shell: "bash" | "zsh" | "fish"): string {
   const words = completionCommands.join(" ");
   if (shell === "bash") {
     return [
-      "_agent_relay_completion() {",
+      "_coordinaut_completion() {",
       "  local cur",
       '  cur="${COMP_WORDS[COMP_CWORD]}"',
       `  COMPREPLY=( $(compgen -W "${words}" -- "$cur") )`,
       "}",
-      "complete -F _agent_relay_completion agent-relay",
+      "complete -F _coordinaut_completion coordinaut",
     ].join("\n");
   }
   if (shell === "zsh") {
     return [
-      "#compdef agent-relay",
+      "#compdef coordinaut",
       "",
-      "_agent_relay() {",
+      "_coordinaut() {",
       `  _arguments '1:command:(${words})' '*::arg:->args'`,
       "}",
       "",
-      '_agent_relay "$@"',
+      '_coordinaut "$@"',
     ].join("\n");
   }
   return completionCommands
-    .map((command) => `complete -c agent-relay -f -a ${command}`)
+    .map((command) => `complete -c coordinaut -f -a ${command}`)
     .join("\n");
 }
 

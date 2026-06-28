@@ -1,9 +1,9 @@
-# @agent-relay/mcp-server
+# @coordinaut/mcp-server
 
-MCP server for Agent Relay. It exposes project-local coordination tools to
+MCP server for Coordinaut. It exposes project-local coordination tools to
 Codex, Claude, Cursor, and other Model Context Protocol clients.
 
-This is the intended agent-native install path. Use `@agent-relay/cli` only
+This is the intended agent-native install path. Use `@coordinaut/cli` only
 when you want terminal commands, git hooks, CI checks, or local debugging.
 
 ## Install From Source
@@ -11,8 +11,8 @@ when you want terminal commands, git hooks, CI checks, or local debugging.
 Until npm publishing is enabled:
 
 ```bash
-git clone https://github.com/LevDomasnih/agent-relay.git
-cd agent-relay
+git clone https://github.com/LevDomasnih/coordinaut.git
+cd coordinaut
 pnpm install
 pnpm run build
 ```
@@ -22,11 +22,9 @@ Codex MCP configuration:
 ```json
 {
   "mcpServers": {
-    "agent-relay": {
+    "coordinaut": {
       "command": "node",
-      "args": [
-        "/absolute/path/to/agent-relay/packages/mcp-server/dist/index.js"
-      ]
+      "args": ["/absolute/path/to/coordinaut/packages/mcp-server/dist/index.js"]
     }
   }
 }
@@ -35,7 +33,7 @@ Codex MCP configuration:
 ## Install From npm
 
 ```bash
-npm install -g @agent-relay/mcp-server
+npm install -g @coordinaut/mcp-server
 ```
 
 ## MCP Configuration
@@ -43,8 +41,8 @@ npm install -g @agent-relay/mcp-server
 ```json
 {
   "mcpServers": {
-    "agent-relay": {
-      "command": "agent-relay-mcp",
+    "coordinaut": {
+      "command": "coordinaut-mcp",
       "args": []
     }
   }
@@ -56,9 +54,9 @@ You can also run it without global install:
 ```json
 {
   "mcpServers": {
-    "agent-relay": {
+    "coordinaut": {
       "command": "npx",
-      "args": ["@agent-relay/mcp-server"]
+      "args": ["@coordinaut/mcp-server"]
     }
   }
 }
@@ -71,4 +69,4 @@ handoffs, directed messages, inbox reads, presence, snapshots, git identity
 helpers, worktree verification, commit-range verification, diagnostics, and
 state migration.
 
-Full documentation: https://github.com/LevDomasnih/agent-relay#readme
+Full documentation: https://github.com/LevDomasnih/coordinaut#readme

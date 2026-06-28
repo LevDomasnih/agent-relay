@@ -5,7 +5,7 @@ import {
   type CoordinatorState,
   type Event,
   type Message,
-} from "@agent-relay/core";
+} from "@coordinaut/core";
 import {
   createServer,
   type IncomingMessage,
@@ -26,11 +26,10 @@ type RouteContext = {
   tail: string[];
 };
 
-const port = Number(process.env.AGENT_RELAY_SERVER_PORT ?? 3737);
-const host = process.env.AGENT_RELAY_SERVER_HOST ?? "127.0.0.1";
+const port = Number(process.env.COORDINAUT_SERVER_PORT ?? 3737);
+const host = process.env.COORDINAUT_SERVER_HOST ?? "127.0.0.1";
 const dataDir =
-  process.env.AGENT_RELAY_SERVER_DATA_DIR ??
-  path.resolve(".agent-relay-server");
+  process.env.COORDINAUT_SERVER_DATA_DIR ?? path.resolve(".coordinaut-server");
 mkdirSync(dataDir, { recursive: true });
 
 const db = new DatabaseSync(path.join(dataDir, "relay.sqlite"), {
@@ -88,7 +87,7 @@ const server = createServer(async (request, response) => {
 });
 
 server.listen(port, host, () => {
-  console.error(`agent-relay-server listening on http://${host}:${port}`);
+  console.error(`coordinaut-server listening on http://${host}:${port}`);
 });
 
 async function handleRequest(
@@ -258,9 +257,9 @@ function authenticate(
 
 function readGrants(): Map<string, TokenGrant> {
   const map = new Map<string, TokenGrant>();
-  const single = process.env.AGENT_RELAY_SERVER_TOKEN;
+  const single = process.env.COORDINAUT_SERVER_TOKEN;
   if (single) map.set(single, { team: "*", role: "admin" });
-  const raw = process.env.AGENT_RELAY_SERVER_TOKENS;
+  const raw = process.env.COORDINAUT_SERVER_TOKENS;
   if (raw) {
     const parsed = JSON.parse(raw) as Record<
       string,
@@ -279,7 +278,7 @@ function readGrants(): Map<string, TokenGrant> {
   }
   if (map.size === 0) {
     console.error(
-      "warning: no AGENT_RELAY_SERVER_TOKEN or AGENT_RELAY_SERVER_TOKENS configured; all project routes will reject",
+      "warning: no COORDINAUT_SERVER_TOKEN or COORDINAUT_SERVER_TOKENS configured; all project routes will reject",
     );
   }
   return map;

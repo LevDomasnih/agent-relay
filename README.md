@@ -1,13 +1,13 @@
-# Agent Relay
+# Coordinaut
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![CI](https://github.com/LevDomasnih/agent-relay/actions/workflows/agent-relay.yml/badge.svg)](https://github.com/LevDomasnih/agent-relay/actions/workflows/agent-relay.yml)
+[![CI](https://github.com/LevDomasnih/coordinaut/actions/workflows/coordinaut.yml/badge.svg)](https://github.com/LevDomasnih/coordinaut/actions/workflows/coordinaut.yml)
 
 [English](README.md) · [Русский](README.ru.md) · [简体中文](README.zh-CN.md) ·
 [Deutsch](README.de.md) · [Español](README.es.md) ·
 [Português do Brasil](README.pt-BR.md) · [日本語](README.ja.md)
 
-Agent Relay is a coordination layer for parallel AI coding agents working in
+Coordinaut is a coordination layer for parallel AI coding agents working in
 the same repository.
 
 It gives Codex, Claude Code, Cursor, and other agents one shared protocol for
@@ -15,9 +15,9 @@ task ownership, scoped file locks, handoffs, inbox messages, leases,
 verification checks, generated human snapshots, and git attribution.
 
 ```text
-agent-relay claim --task AGT-20260628-001 --agent frontend-codex --files "src/pages/settings/**"
-agent-relay verify-worktree --agent-instance agent_123
-agent-relay release --task AGT-20260628-001 --reason "iteration finished"
+coordinaut claim --task AGT-20260628-001 --agent frontend-codex --files "src/pages/settings/**"
+coordinaut verify-worktree --agent-instance agent_123
+coordinaut release --task AGT-20260628-001 --reason "iteration finished"
 ```
 
 Use it when one agent is no longer enough, but a full hosted orchestration
@@ -25,7 +25,7 @@ platform is too much.
 
 ## At A Glance
 
-| Need                                      | Agent Relay gives you                                 |
+| Need                                      | Coordinaut gives you                                  |
 | ----------------------------------------- | ----------------------------------------------------- |
 | Run 2-5 coding agents in one repo         | Explicit task claims and scoped file ownership        |
 | Avoid accidental overlap                  | Conflict checks for active leases and file scopes     |
@@ -36,12 +36,12 @@ platform is too much.
 
 ## Two Ways To Use It
 
-**MCP-first, for Codex and other agents.** Add `agent-relay` as an MCP server,
+**MCP-first, for Codex and other agents.** Add `coordinaut` as an MCP server,
 then ask the agent to initialize or coordinate the current repo. The agent calls
 tools such as `init_project`, `create_task`, `claim_task`, `verify_worktree`,
 `post_message`, and `request_handoff`.
 
-**CLI, for humans and automation.** Use `agent-relay` in a terminal for manual
+**CLI, for humans and automation.** Use `coordinaut` in a terminal for manual
 setup, diagnostics, git hooks, CI checks, shell completions, and debugging.
 
 Both paths use the same coordinator state and the same protocol. You can start
@@ -50,15 +50,15 @@ continue through MCP.
 
 ## Install In Codex As MCP
 
-This is the intended client experience: Codex gets Agent Relay as an MCP server,
+This is the intended client experience: Codex gets Coordinaut as an MCP server,
 and agents call tools like `create_task`, `claim_task`, `post_message`,
 `verify_worktree`, and `request_handoff`.
 
-Until npm publishing is enabled, build Agent Relay once:
+Until npm publishing is enabled, build Coordinaut once:
 
 ```bash
-git clone https://github.com/LevDomasnih/agent-relay.git
-cd agent-relay
+git clone https://github.com/LevDomasnih/coordinaut.git
+cd coordinaut
 pnpm install
 pnpm run build
 ```
@@ -68,11 +68,9 @@ Then add the MCP server to Codex with an absolute path:
 ```json
 {
   "mcpServers": {
-    "agent-relay": {
+    "coordinaut": {
       "command": "node",
-      "args": [
-        "/absolute/path/to/agent-relay/packages/mcp-server/dist/index.js"
-      ]
+      "args": ["/absolute/path/to/coordinaut/packages/mcp-server/dist/index.js"]
     }
   }
 }
@@ -83,9 +81,9 @@ After npm publishing, the config becomes:
 ```json
 {
   "mcpServers": {
-    "agent-relay": {
+    "coordinaut": {
       "command": "npx",
-      "args": ["@agent-relay/mcp-server"]
+      "args": ["@coordinaut/mcp-server"]
     }
   }
 }
@@ -98,33 +96,33 @@ project.
 ## CLI Install
 
 ```bash
-git clone https://github.com/LevDomasnih/agent-relay.git
-cd agent-relay
+git clone https://github.com/LevDomasnih/coordinaut.git
+cd coordinaut
 pnpm install
 pnpm run build
-pnpm --filter @agent-relay/cli agent-relay --help
+pnpm --filter @coordinaut/cli coordinaut --help
 ```
 
 The CLI is still useful for hooks, local checks, shell completions, and manual
 debugging:
 
 ```bash
-agent-relay init
-agent-relay doctor
-agent-relay verify-worktree --agent-instance agent_123
+coordinaut init
+coordinaut doctor
+coordinaut verify-worktree --agent-instance agent_123
 ```
 
 ## 60-Second CLI Workflow
 
 ```bash
-agent-relay init
+coordinaut init
 
-agent-relay create \
+coordinaut create \
   --title "Fix settings layout" \
   --scope "settings page" \
   --files "src/pages/settings/**"
 
-agent-relay claim \
+coordinaut claim \
   --task AGT-20260628-001 \
   --agent frontend-codex \
   --agent-instance agent_123 \
@@ -133,10 +131,10 @@ agent-relay claim \
 
 # edit code...
 
-agent-relay verify-worktree --agent-instance agent_123
-agent-relay update --task AGT-20260628-001 --status verifying --next "run regression"
-agent-relay release --task AGT-20260628-001 --agent-instance agent_123 --reason "iteration finished"
-agent-relay snapshot
+coordinaut verify-worktree --agent-instance agent_123
+coordinaut update --task AGT-20260628-001 --status verifying --next "run regression"
+coordinaut release --task AGT-20260628-001 --agent-instance agent_123 --reason "iteration finished"
+coordinaut snapshot
 ```
 
 ## How Agents Coordinate
@@ -163,18 +161,18 @@ generated Markdown snapshot is just the human-readable view.
 
 ## Storage Choices
 
-| Mode     | Best for                         | Command                                 |
-| -------- | -------------------------------- | --------------------------------------- |
-| `json`   | Default local use                | `agent-relay init`                      |
-| `sqlite` | Larger long-lived local projects | `agent-relay init --storage sqlite`     |
-| `remote` | Distributed teams / hosted sync  | `agent-relay init --storage remote ...` |
+| Mode     | Best for                         | Command                                |
+| -------- | -------------------------------- | -------------------------------------- |
+| `json`   | Default local use                | `coordinaut init`                      |
+| `sqlite` | Larger long-lived local projects | `coordinaut init --storage sqlite`     |
+| `remote` | Distributed teams / hosted sync  | `coordinaut init --storage remote ...` |
 
 Remote team setup:
 
 ```bash
-AGENT_RELAY_SERVER_TOKEN="<set-a-local-token>" agent-relay-server
+COORDINAUT_SERVER_TOKEN="<set-a-local-token>" coordinaut-server
 
-AGENT_RELAY_TOKEN="<set-a-local-token>" agent-relay init \
+COORDINAUT_TOKEN="<set-a-local-token>" coordinaut init \
   --storage remote \
   --remote-url http://localhost:3737 \
   --team platform \
@@ -189,7 +187,7 @@ ETag/`If-Match`.
 
 Markdown task boards are great for people and brittle for parallel agents.
 
-| Without a coordinator                      | With Agent Relay                               |
+| Without a coordinator                      | With Coordinaut                                |
 | ------------------------------------------ | ---------------------------------------------- |
 | Two agents can grab the same file silently | Overlapping active claims return a conflict    |
 | A dead agent leaves stale ownership behind | Leases expire, and takeover requires a reason  |
@@ -201,7 +199,7 @@ Markdown task boards are great for people and brittle for parallel agents.
 State is project-local and portable:
 
 ```text
-.agent-relay/
+.coordinaut/
   config.json
   state.json          # default JSON storage
   state.sqlite        # optional SQLite storage
@@ -214,7 +212,7 @@ or point the same CLI/MCP protocol at a hosted team backend.
 
 ## Status
 
-Agent Relay is source-ready for a first public release. The CLI, core package,
+Coordinaut is source-ready for a first public release. The CLI, core package,
 MCP server, hosted sync server, JSON/SQLite/remote storage adapters, state
 migrations, CI checks, package dry-runs, CLI smoke test, real MCP client smoke
 test, and hosted server smoke test are implemented and verified.
@@ -227,20 +225,20 @@ available or renamed.
 Initialize a repository:
 
 ```bash
-agent-relay init
-agent-relay doctor
+coordinaut init
+coordinaut doctor
 ```
 
 For a family of git worktrees, put shared coordinator state in one directory:
 
 ```bash
-agent-relay init --state-dir ../.agent-relay-shared
+coordinaut init --state-dir ../.coordinaut-shared
 ```
 
 Create a task:
 
 ```bash
-agent-relay create \
+coordinaut create \
   --title "Fix settings layout" \
   --scope "settings page" \
   --files "src/pages/settings/**"
@@ -249,7 +247,7 @@ agent-relay create \
 Claim it before editing:
 
 ```bash
-agent-relay claim \
+coordinaut claim \
   --task AGT-20260628-001 \
   --agent frontend-codex \
   --agent-instance agent_123 \
@@ -260,22 +258,22 @@ agent-relay claim \
 Keep the lease alive while working:
 
 ```bash
-agent-relay heartbeat --task AGT-20260628-001 --agent-instance agent_123
-agent-relay update --task AGT-20260628-001 --status fixing --next "patch layout drift"
+coordinaut heartbeat --task AGT-20260628-001 --agent-instance agent_123
+coordinaut update --task AGT-20260628-001 --status fixing --next "patch layout drift"
 ```
 
 Verify before handoff, commit, or final response:
 
 ```bash
-agent-relay verify-worktree --agent-instance agent_123
+coordinaut verify-worktree --agent-instance agent_123
 ```
 
 Finish the iteration:
 
 ```bash
-agent-relay update --task AGT-20260628-001 --status verifying --next "run focused regression"
-agent-relay release --task AGT-20260628-001 --agent-instance agent_123 --reason "iteration finished"
-agent-relay snapshot
+coordinaut update --task AGT-20260628-001 --status verifying --next "run focused regression"
+coordinaut release --task AGT-20260628-001 --agent-instance agent_123 --reason "iteration finished"
+coordinaut snapshot
 ```
 
 ## The Agent Protocol
@@ -300,7 +298,7 @@ log, and message log are the source of truth.
 When another agent owns a scope you need, ask for it:
 
 ```bash
-agent-relay handoff request \
+coordinaut handoff request \
   --task AGT-20260628-002 \
   --agent backend-codex \
   --agent-instance agent_456 \
@@ -311,7 +309,7 @@ agent-relay handoff request \
 The owner responds:
 
 ```bash
-agent-relay handoff respond \
+coordinaut handoff respond \
   --id handoff_... \
   --status grant_after_commit \
   --agent frontend-codex \
@@ -332,21 +330,21 @@ Every request and response is written to the event log and message log.
 Agents can talk through an inbox instead of scraping raw event logs:
 
 ```bash
-agent-relay message \
+coordinaut message \
   --from-agent frontend-codex \
   --from-agent-instance agent_123 \
   --to-agent-instance agent_456 \
   --kind question \
   --text "Can you take package.json after this commit?"
 
-agent-relay inbox --agent-instance agent_456
-agent-relay inbox-read --agent-instance agent_456 --messages msg_...
+coordinaut inbox --agent-instance agent_456
+coordinaut inbox-read --agent-instance agent_456 --messages msg_...
 ```
 
 Broadcasts and mentions are supported too:
 
 ```bash
-agent-relay message \
+coordinaut message \
   --from-agent release-codex \
   --broadcast \
   --kind blocker \
@@ -356,26 +354,26 @@ agent-relay message \
 See who is active and what they hold:
 
 ```bash
-agent-relay presence
-agent-relay watch --limit 20
+coordinaut presence
+coordinaut watch --limit 20
 ```
 
 ## Verification And Git Hooks
 
 MCP makes the protocol easy to call, but MCP alone cannot force agents to use
-it. Agent Relay includes local checks for the boring-but-important part:
+it. Coordinaut includes local checks for the boring-but-important part:
 "are these files actually claimed by this agent?"
 
 ```bash
-agent-relay verify-worktree --agent-instance agent_123
-agent-relay verify-commit --agent-instance agent_123 --message-file .git/COMMIT_EDITMSG
+coordinaut verify-worktree --agent-instance agent_123
+coordinaut verify-commit --agent-instance agent_123 --message-file .git/COMMIT_EDITMSG
 ```
 
 Install local hooks:
 
 ```bash
-agent-relay install-hooks
-export AGENT_RELAY_INSTANCE=agent_123
+coordinaut install-hooks
+export COORDINAUT_INSTANCE=agent_123
 ```
 
 The design rule:
@@ -387,7 +385,7 @@ MCP is the protocol. Hooks and checks are the enforcement.
 For PR and CI checks, verify the commit range:
 
 ```bash
-agent-relay verify-commit-range --range "origin/main..HEAD"
+coordinaut verify-commit-range --range "origin/main..HEAD"
 ```
 
 This checks commit trailers and, when the referenced task exists in local
@@ -398,7 +396,7 @@ coordinator state, verifies changed files against that task's claimed scope.
 Set local git identity for the current agent:
 
 ```bash
-agent-relay git-identity \
+coordinaut git-identity \
   --agent frontend-codex \
   --agent-instance agent_123 \
   --thread 019eff77 \
@@ -417,7 +415,7 @@ Agent-Task: AGT-20260628-001
 Restore the previous local identity:
 
 ```bash
-agent-relay git-identity-reset
+coordinaut git-identity-reset
 ```
 
 Commit trailers are the durable attribution layer. Local git identity is only a
@@ -429,8 +427,8 @@ The next agent can reconstruct context from task events, messages, handoffs,
 and commit trailers:
 
 ```bash
-agent-relay explain --task AGT-20260628-001
-agent-relay explain --commit 0c464bc
+coordinaut explain --task AGT-20260628-001
+coordinaut explain --commit 0c464bc
 ```
 
 Use this before resuming old work, reviewing a suspicious commit, or deciding
@@ -441,7 +439,7 @@ whether a stale lease can be taken over.
 Run the server:
 
 ```bash
-agent-relay-mcp
+coordinaut-mcp
 ```
 
 Example client configuration:
@@ -449,8 +447,8 @@ Example client configuration:
 ```json
 {
   "mcpServers": {
-    "agent-relay": {
-      "command": "agent-relay-mcp",
+    "coordinaut": {
+      "command": "coordinaut-mcp",
       "args": []
     }
   }
@@ -464,7 +462,7 @@ client so the server never writes coordinator state in the wrong directory.
 
 | Tool                  | Purpose                                              |
 | --------------------- | ---------------------------------------------------- |
-| `init_project`        | Initialize `.agent-relay`                            |
+| `init_project`        | Initialize `.coordinaut`                             |
 | `create_task`         | Create a task                                        |
 | `claim_task`          | Claim task scopes                                    |
 | `update_task`         | Update status, checks, blockers, and next steps      |
@@ -561,31 +559,31 @@ verify-commit-range
 completion
 ```
 
-Run `agent-relay <command> --help` for command-specific options.
+Run `coordinaut <command> --help` for command-specific options.
 
 Generate shell completions:
 
 ```bash
-agent-relay completion bash > ~/.agent-relay-completion.bash
-agent-relay completion zsh > _agent-relay
-agent-relay completion fish > ~/.config/fish/completions/agent-relay.fish
+coordinaut completion bash > ~/.coordinaut-completion.bash
+coordinaut completion zsh > _coordinaut
+coordinaut completion fish > ~/.config/fish/completions/coordinaut.fish
 ```
 
 ## Storage Modes
 
-| Mode     | Use for                           | State location                         |
-| -------- | --------------------------------- | -------------------------------------- |
-| `json`   | Default local projects            | `.agent-relay/state.json` + JSONL logs |
-| `sqlite` | Larger long-lived local projects  | `.agent-relay/state.sqlite`            |
-| `remote` | Distributed teams and hosted sync | `agent-relay-server` over HTTP         |
+| Mode     | Use for                           | State location                        |
+| -------- | --------------------------------- | ------------------------------------- |
+| `json`   | Default local projects            | `.coordinaut/state.json` + JSONL logs |
+| `sqlite` | Larger long-lived local projects  | `.coordinaut/state.sqlite`            |
+| `remote` | Distributed teams and hosted sync | `coordinaut-server` over HTTP         |
 
 This is the same choice shown near the top, with the operational details kept
 here for people wiring real projects.
 
-`agent-relay init --storage sqlite` keeps the same CLI and MCP behavior while
+`coordinaut init --storage sqlite` keeps the same CLI and MCP behavior while
 storing state, events, and messages in SQLite.
 
-`agent-relay init --storage remote` writes a local config that points to a
+`coordinaut init --storage remote` writes a local config that points to a
 hosted backend. All normal commands (`create`, `claim`, `message`, `doctor`,
 MCP tools, and verification) use the remote team/project state.
 
@@ -594,9 +592,9 @@ MCP tools, and verification) use the remote team/project state.
 Run the backend:
 
 ```bash
-AGENT_RELAY_SERVER_TOKEN="<set-a-local-token>" \
-AGENT_RELAY_SERVER_DATA_DIR=.agent-relay-server \
-agent-relay-server
+COORDINAUT_SERVER_TOKEN="<set-a-local-token>" \
+COORDINAUT_SERVER_DATA_DIR=.coordinaut-server \
+coordinaut-server
 ```
 
 The server stores team/project data in SQLite and exposes:
@@ -615,8 +613,8 @@ POST /v1/teams/:team/projects/:project/backups
 ```
 
 Auth is Bearer-token based. For one admin token, set
-`AGENT_RELAY_SERVER_TOKEN`. For multiple teams or roles, set
-`AGENT_RELAY_SERVER_TOKENS`:
+`COORDINAUT_SERVER_TOKEN`. For multiple teams or roles, set
+`COORDINAUT_SERVER_TOKENS`:
 
 ```json
 {
@@ -632,24 +630,24 @@ Roles:
 
 ## Multi-Worktree Caveat
 
-By default one checkout has one `.agent-relay` state. If agents work in
+By default one checkout has one `.coordinaut` state. If agents work in
 separate worktrees or clones, initialize each checkout with the same state
 directory:
 
 ```bash
-agent-relay init --state-dir /path/to/shared-agent-relay-state
+coordinaut init --state-dir /path/to/shared-coordinaut-state
 ```
 
-`agent-relay doctor` prints the resolved root and state path so this is
+`coordinaut doctor` prints the resolved root and state path so this is
 visible.
 
 ## State Migrations
 
-`agent-relay doctor` checks the state schema version. If it reports that
+`coordinaut doctor` checks the state schema version. If it reports that
 state requires migration, run:
 
 ```bash
-agent-relay migrate
+coordinaut migrate
 ```
 
 Migration normalizes coordinator state to the current schema and writes a

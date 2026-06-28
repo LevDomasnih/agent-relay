@@ -16,10 +16,10 @@ test("init creates coordinator files and a generated snapshot", async () => {
   await coordinator.init("sample");
 
   const state = JSON.parse(
-    await readFile(path.join(root, ".agent-relay/state.json"), "utf8"),
+    await readFile(path.join(root, ".coordinaut/state.json"), "utf8"),
   ) as { tasks: unknown[]; agents: unknown[] };
   const snapshot = await readFile(
-    path.join(root, ".agent-relay/snapshots/TASKS.md"),
+    path.join(root, ".coordinaut/snapshots/TASKS.md"),
     "utf8",
   );
 
@@ -73,22 +73,67 @@ test("sqlite storage persists state and is discovered from config", async () => 
   });
 
   const config = JSON.parse(
-    await readFile(path.join(root, ".agent-relay/config.json"), "utf8"),
+    await readFile(path.join(root, ".coordinaut/config.json"), "utf8"),
   ) as { storage?: { type?: string } };
   const reloaded = new AgentCoordinator(root);
   const tasks = await reloaded.listTasks();
   const doctor = await reloaded.doctor();
 
   assert.equal(config.storage?.type, "sqlite");
-  await access(path.join(root, ".agent-relay/state.sqlite"));
+  await access(path.join(root, ".coordinaut/state.sqlite"));
   await assert.rejects(
-    access(path.join(root, ".agent-relay/state.json")),
+    access(path.join(root, ".coordinaut/state.json")),
     /ENOENT/u,
   );
   assert.equal(tasks.length, 1);
   assert.equal(tasks[0]?.displayId, "AGT-20260628-001");
-  assert.equal(doctor.statePath, path.join(root, ".agent-relay/state.sqlite"));
+  assert.equal(doctor.statePath, path.join(root, ".coordinaut/state.sqlite"));
   assert.ok(doctor.checks.every((check) => check.ok));
+});
+
+test("legacy .agent-relay state remains readable after rename", async () => {
+  const root = await tempGitRepo();
+  const legacyDir = path.join(root, ".agent-relay");
+  const nestedDir = path.join(root, "nested");
+  await mkdir(legacyDir);
+  await mkdir(nestedDir);
+  await writeFile(
+    path.join(legacyDir, "config.json"),
+    JSON.stringify(
+      {
+        version: 1,
+        projectName: "legacy",
+        defaultLeaseMinutes: 120,
+        snapshotPath: ".agent-relay/snapshots/TASKS.md",
+      },
+      null,
+      2,
+    ),
+  );
+  await writeFile(
+    path.join(legacyDir, "state.json"),
+    JSON.stringify(
+      {
+        version: 1,
+        tasks: [],
+        agents: [],
+        handoffs: [],
+        messageReceipts: [],
+      },
+      null,
+      2,
+    ),
+  );
+  await writeFile(path.join(legacyDir, "events.jsonl"), "");
+  await writeFile(path.join(legacyDir, "messages.jsonl"), "");
+
+  const coordinator = new AgentCoordinator(root);
+  const foundRoot = await findProjectRoot(nestedDir);
+  const tasks = await coordinator.listTasks();
+
+  assert.equal(coordinator.paths.dir, legacyDir);
+  assert.equal(foundRoot, root);
+  assert.deepEqual(tasks, []);
 });
 
 test("legacy .agent-coordinator state remains readable after rename", async () => {
@@ -319,9 +364,9 @@ test("git identity can be set and restored in a test repo", async () => {
   const setEmail = await gitConfig(root, "user.email");
   const reset = await coordinator.resetGitIdentity();
 
-  assert.equal(identity.email, "codex+thread_1@agent-relay.local");
+  assert.equal(identity.email, "codex+thread_1@coordinaut.local");
   assert.equal(setName, "agent-a");
-  assert.equal(setEmail, "codex+thread_1@agent-relay.local");
+  assert.equal(setEmail, "codex+thread_1@coordinaut.local");
   assert.equal(reset.restored, true);
   assert.equal(await gitConfig(root, "user.name"), "Human");
   assert.equal(await gitConfig(root, "user.email"), "human@example.test");
@@ -331,7 +376,7 @@ test("migrateState normalizes legacy state and doctor requires current schema", 
   const root = await tempGitRepo();
   const coordinator = new AgentCoordinator(root);
   await coordinator.init("sample");
-  const statePath = path.join(root, ".agent-relay/state.json");
+  const statePath = path.join(root, ".coordinaut/state.json");
 
   await writeFile(
     statePath,
@@ -391,7 +436,7 @@ test("doctor reports snapshot drift and export rejects paths outside root", asyn
   const root = await tempGitRepo();
   const coordinator = new AgentCoordinator(root);
   await coordinator.init("sample");
-  const snapshotPath = path.join(root, ".agent-relay/snapshots/TASKS.md");
+  const snapshotPath = path.join(root, ".coordinaut/snapshots/TASKS.md");
 
   await writeFile(snapshotPath, "# Manual board\n");
   const drift = await coordinator.doctor();
@@ -402,7 +447,7 @@ test("doctor reports snapshot drift and export rejects paths outside root", asyn
   );
 
   await writeFile(
-    path.join(root, ".agent-relay/config.json"),
+    path.join(root, ".coordinaut/config.json"),
     JSON.stringify(
       {
         version: 1,
@@ -689,7 +734,7 @@ test("install-hooks writes executable local git hooks", async () => {
 });
 
 async function tempGitRepo(): Promise<string> {
-  const root = await mkdtemp(path.join(os.tmpdir(), "agent-relay-"));
+  const root = await mkdtemp(path.join(os.tmpdir(), "coordinaut-"));
   await execFileAsync("git", ["init"], { cwd: root });
   await execFileAsync("git", ["config", "user.name", "Test User"], {
     cwd: root,

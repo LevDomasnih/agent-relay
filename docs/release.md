@@ -2,10 +2,10 @@
 
 This project is a pnpm workspace with four publishable packages:
 
-- `@agent-relay/core`
-- `@agent-relay/cli`
-- `@agent-relay/mcp-server`
-- `@agent-relay/server`
+- `@coordinaut/core`
+- `@coordinaut/cli`
+- `@coordinaut/mcp-server`
+- `@coordinaut/server`
 
 ## Automated Publishing
 
@@ -36,16 +36,16 @@ For every release it:
 The workflow supports npm Trusted Publishing via GitHub OIDC. In npm, configure
 each package with this trusted publisher:
 
-- Repository: `LevDomasnih/agent-relay`
+- Repository: `LevDomasnih/coordinaut`
 - Workflow: `release.yml`
 - Environment: empty
 
 Packages:
 
-- `@agent-relay/core`
-- `@agent-relay/cli`
-- `@agent-relay/mcp-server`
-- `@agent-relay/server`
+- `@coordinaut/core`
+- `@coordinaut/cli`
+- `@coordinaut/mcp-server`
+- `@coordinaut/server`
 
 If Trusted Publishing is not enabled yet, add a GitHub Actions secret named
 `NPM_TOKEN` with publish access to these packages. For accounts with 2FA, this
@@ -80,10 +80,10 @@ Use the commands below only as a fallback after npm scope ownership is resolved.
 Publish core first, then CLI, MCP server, and hosted server:
 
 ```bash
-pnpm --filter @agent-relay/core publish --access public --provenance
-pnpm --filter @agent-relay/cli publish --access public --provenance
-pnpm --filter @agent-relay/mcp-server publish --access public --provenance
-pnpm --filter @agent-relay/server publish --access public --provenance
+pnpm --filter @coordinaut/core publish --access public --provenance
+pnpm --filter @coordinaut/cli publish --access public --provenance
+pnpm --filter @coordinaut/mcp-server publish --access public --provenance
+pnpm --filter @coordinaut/server publish --access public --provenance
 ```
 
 ## Post-Publish Smoke
@@ -92,15 +92,15 @@ pnpm --filter @agent-relay/server publish --access public --provenance
 tmp="$(mktemp -d)"
 cd "$tmp"
 git init
-npx @agent-relay/cli init
-npx @agent-relay/cli doctor
-npx @agent-relay/cli create --title "Smoke" --scope "src" --files "src/**"
-npx @agent-relay/cli status
+npx @coordinaut/cli init
+npx @coordinaut/cli doctor
+npx @coordinaut/cli create --title "Smoke" --scope "src" --files "src/**"
+npx @coordinaut/cli status
 ```
 
 ## Notes
 
-- Do not publish `.agent-relay/`, `node_modules/`, or `dist` from the
+- Do not publish `.coordinaut/`, `node_modules/`, or `dist` from the
   repository root.
 - Keep generated snapshots as human-readable output only.
 - Commit trailers are part of the public workflow contract; do not remove them

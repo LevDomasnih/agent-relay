@@ -1,9 +1,9 @@
 # Design
 
-Agent Relay is a local coordination layer for agents working in one
+Coordinaut is a local coordination layer for agents working in one
 repository.
 
-The first implementation stores state under `.agent-relay/` using JSON
+The first implementation stores state under `.coordinaut/` using JSON
 state plus JSONL events. Mutations acquire a short-lived lock file so concurrent
 agent processes do not write at the same time.
 
