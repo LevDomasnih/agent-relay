@@ -47,6 +47,12 @@ importers:
         specifier: ^4.1.13
         version: 4.4.3
 
+  packages/server:
+    dependencies:
+      "@agent-relay/core":
+        specifier: 0.1.5
+        version: link:../core
+
 packages:
   "@esbuild/aix-ppc64@0.28.1":
     resolution:

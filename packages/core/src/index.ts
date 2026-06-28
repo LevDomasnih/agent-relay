@@ -1,4 +1,4 @@
-import { constants, existsSync, readFileSync } from "node:fs";
+import { constants, existsSync, mkdirSync, readFileSync } from "node:fs";
 import {
   access,
   appendFile,
@@ -17,6 +17,7 @@ import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { promisify } from "node:util";
 import { minimatch } from "minimatch";
+import type { DatabaseSync } from "node:sqlite";
 
 const execFileAsync = promisify(execFile);
 
@@ -138,6 +139,7 @@ export type CoordinatorConfig = {
   defaultLeaseMinutes: number;
   snapshotPath: string;
   stateDir?: string;
+  storage?: StorageOptions;
 };
 
 export type GitIdentityBackup = {
@@ -169,6 +171,12 @@ export type CoordinatorPaths = {
 };
 
 export type Storage = {
+  readonly type: StorageType;
+  statePath(): string;
+  sourcePaths(): string[];
+  hasState(): Promise<boolean>;
+  readRawState(): Promise<Partial<CoordinatorState>>;
+  backupState(): Promise<string | undefined>;
   readConfig(): Promise<CoordinatorConfig>;
   writeConfig(config: CoordinatorConfig): Promise<void>;
   readState(): Promise<CoordinatorState>;
@@ -181,7 +189,26 @@ export type Storage = {
 
 export type AgentCoordinatorOptions = {
   stateDir?: string;
+  storage?: StorageOptions;
 };
+
+export type StorageType = "json" | "sqlite" | "remote";
+
+export type StorageOptions =
+  | {
+      type: "json";
+    }
+  | {
+      type: "sqlite";
+      sqlitePath?: string;
+    }
+  | {
+      type: "remote";
+      url: string;
+      team: string;
+      project: string;
+      token?: string;
+    };
 
 export type CreateTaskInput = {
   id?: string;
@@ -389,7 +416,31 @@ export type ExplainResult = {
 };
 
 export class JsonFileStorage implements Storage {
+  readonly type = "json" as const;
+
   constructor(private readonly paths: CoordinatorPaths) {}
+
+  statePath(): string {
+    return this.paths.state;
+  }
+
+  sourcePaths(): string[] {
+    return [this.paths.state, this.paths.events, this.paths.messages];
+  }
+
+  async hasState(): Promise<boolean> {
+    return existsSync(this.paths.state);
+  }
+
+  async readRawState(): Promise<Partial<CoordinatorState>> {
+    return readJson<Partial<CoordinatorState>>(this.paths.state);
+  }
+
+  async backupState(): Promise<string> {
+    const backupPath = `${this.paths.state}.bak-${timestamp().replace(/[:.]/gu, "-")}`;
+    await copyFile(this.paths.state, backupPath);
+    return backupPath;
+  }
 
   async readConfig(): Promise<CoordinatorConfig> {
     return readJson<CoordinatorConfig>(this.paths.config);
@@ -430,6 +481,289 @@ export class JsonFileStorage implements Storage {
   }
 }
 
+export class SqliteStorage implements Storage {
+  readonly type = "sqlite" as const;
+  private db?: DatabaseSync;
+
+  constructor(
+    private readonly paths: CoordinatorPaths,
+    private readonly sqlitePath = path.join(paths.stateDir, "state.sqlite"),
+  ) {}
+
+  statePath(): string {
+    return this.sqlitePath;
+  }
+
+  sourcePaths(): string[] {
+    return [this.sqlitePath];
+  }
+
+  async hasState(): Promise<boolean> {
+    if (!existsSync(this.sqlitePath)) return false;
+    await this.ensureSchema();
+    const row = (await this.database())
+      .prepare("SELECT value FROM documents WHERE kind = ?")
+      .get("state") as { value: string } | undefined;
+    return Boolean(row);
+  }
+
+  async readRawState(): Promise<Partial<CoordinatorState>> {
+    await this.ensureSchema();
+    const row = (await this.database())
+      .prepare("SELECT value FROM documents WHERE kind = ?")
+      .get("state") as { value: string } | undefined;
+    if (!row) throw new Error(`Missing SQLite coordinator state`);
+    return JSON.parse(row.value) as Partial<CoordinatorState>;
+  }
+
+  async backupState(): Promise<string | undefined> {
+    if (!existsSync(this.sqlitePath)) return undefined;
+    const backupPath = `${this.sqlitePath}.bak-${timestamp().replace(/[:.]/gu, "-")}`;
+    await copyFile(this.sqlitePath, backupPath);
+    return backupPath;
+  }
+
+  async readConfig(): Promise<CoordinatorConfig> {
+    return readJson<CoordinatorConfig>(this.paths.config);
+  }
+
+  async writeConfig(config: CoordinatorConfig): Promise<void> {
+    await writeJsonAtomic(this.paths.config, config);
+  }
+
+  async readState(): Promise<CoordinatorState> {
+    return normalizeState(await this.readRawState());
+  }
+
+  async writeState(state: CoordinatorState): Promise<void> {
+    await this.ensureSchema();
+    (await this.database())
+      .prepare(
+        "INSERT INTO documents(kind, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(kind) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
+      )
+      .run("state", JSON.stringify(normalizeState(state)), timestamp());
+  }
+
+  async appendEvent(event: Event): Promise<void> {
+    await this.ensureSchema();
+    (await this.database())
+      .prepare("INSERT INTO events(id, at, json) VALUES (?, ?, ?)")
+      .run(event.id, event.at, JSON.stringify(event));
+  }
+
+  async appendMessage(message: Message): Promise<void> {
+    await this.ensureSchema();
+    (await this.database())
+      .prepare("INSERT INTO messages(id, at, json) VALUES (?, ?, ?)")
+      .run(message.id, message.at, JSON.stringify(message));
+  }
+
+  async readEvents(): Promise<Event[]> {
+    await this.ensureSchema();
+    const rows = (await this.database())
+      .prepare("SELECT json FROM events ORDER BY seq ASC")
+      .all() as Array<{ json: string }>;
+    return rows.map((row) => JSON.parse(row.json) as Event);
+  }
+
+  async readMessages(): Promise<Message[]> {
+    await this.ensureSchema();
+    const rows = (await this.database())
+      .prepare("SELECT json FROM messages ORDER BY seq ASC")
+      .all() as Array<{ json: string }>;
+    return rows.map((row) =>
+      normalizeMessage(JSON.parse(row.json) as Partial<Message>),
+    );
+  }
+
+  private async database(): Promise<DatabaseSync> {
+    if (!this.db) {
+      mkdirSync(path.dirname(this.sqlitePath), { recursive: true });
+      const { DatabaseSync } = await import("node:sqlite");
+      this.db = new DatabaseSync(this.sqlitePath, { timeout: 5000 });
+      this.db.exec("PRAGMA journal_mode = WAL");
+      this.db.exec("PRAGMA busy_timeout = 5000");
+    }
+    return this.db;
+  }
+
+  private async ensureSchema(): Promise<void> {
+    const db = await this.database();
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS documents (
+        kind TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS events (
+        seq INTEGER PRIMARY KEY AUTOINCREMENT,
+        id TEXT NOT NULL UNIQUE,
+        at TEXT NOT NULL,
+        json TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS messages (
+        seq INTEGER PRIMARY KEY AUTOINCREMENT,
+        id TEXT NOT NULL UNIQUE,
+        at TEXT NOT NULL,
+        json TEXT NOT NULL
+      );
+    `);
+  }
+}
+
+export class RemoteStorage implements Storage {
+  readonly type = "remote" as const;
+  private readonly baseUrl: string;
+  private configEtag?: string;
+  private stateEtag?: string;
+
+  constructor(
+    private readonly paths: CoordinatorPaths,
+    private readonly options: Extract<StorageOptions, { type: "remote" }>,
+  ) {
+    this.baseUrl = `${options.url.replace(/\/+$/u, "")}/v1/teams/${encodeURIComponent(options.team)}/projects/${encodeURIComponent(options.project)}`;
+  }
+
+  statePath(): string {
+    return this.baseUrl;
+  }
+
+  sourcePaths(): string[] {
+    return [];
+  }
+
+  async hasState(): Promise<boolean> {
+    const response = await this.request("GET", "state", undefined, {
+      allowNotFound: true,
+    });
+    return response !== undefined;
+  }
+
+  async readRawState(): Promise<Partial<CoordinatorState>> {
+    const result = await this.requestWithHeaders("GET", "state");
+    this.stateEtag = result.etag;
+    return result.body as Partial<CoordinatorState>;
+  }
+
+  async backupState(): Promise<string | undefined> {
+    await this.request("POST", "backups", undefined);
+    return undefined;
+  }
+
+  async readConfig(): Promise<CoordinatorConfig> {
+    if (existsSync(this.paths.config)) {
+      return readJson<CoordinatorConfig>(this.paths.config);
+    }
+    const result = await this.requestWithHeaders("GET", "config");
+    this.configEtag = result.etag;
+    return result.body as CoordinatorConfig;
+  }
+
+  async writeConfig(config: CoordinatorConfig): Promise<void> {
+    await mkdir(this.paths.dir, { recursive: true });
+    await writeJsonAtomic(this.paths.config, config);
+    const result = await this.requestWithHeaders("PUT", "config", config, {
+      etag: this.configEtag,
+    });
+    this.configEtag = result.etag;
+  }
+
+  async readState(): Promise<CoordinatorState> {
+    return normalizeState(await this.readRawState());
+  }
+
+  async writeState(state: CoordinatorState): Promise<void> {
+    const result = await this.requestWithHeaders(
+      "PUT",
+      "state",
+      normalizeState(state),
+      {
+        etag: this.stateEtag,
+      },
+    );
+    this.stateEtag = result.etag;
+  }
+
+  async appendEvent(event: Event): Promise<void> {
+    await this.request("POST", "events", event);
+  }
+
+  async appendMessage(message: Message): Promise<void> {
+    await this.request("POST", "messages", message);
+  }
+
+  async readEvents(): Promise<Event[]> {
+    return this.requestJson<Event[]>("GET", "events");
+  }
+
+  async readMessages(): Promise<Message[]> {
+    return (
+      await this.requestJson<Array<Partial<Message>>>("GET", "messages")
+    ).map(normalizeMessage);
+  }
+
+  private async requestJson<T>(
+    method: string,
+    route: string,
+    body?: unknown,
+  ): Promise<T> {
+    const response = await this.request(method, route, body);
+    return response as T;
+  }
+
+  private async requestWithHeaders(
+    method: string,
+    route: string,
+    body?: unknown,
+    options: { etag?: string; allowNotFound?: boolean } = {},
+  ): Promise<{ body: unknown; etag?: string }> {
+    const response = await this.fetch(method, route, body, options);
+    if (response.status === 404 && options.allowNotFound) {
+      return { body: undefined };
+    }
+    await assertRemoteOk(response, method, route);
+    const etag = response.headers.get("etag") ?? undefined;
+    return {
+      body:
+        response.status === 204
+          ? undefined
+          : ((await response.json()) as unknown),
+      etag,
+    };
+  }
+
+  private async request(
+    method: string,
+    route: string,
+    body?: unknown,
+    options: { allowNotFound?: boolean } = {},
+  ): Promise<unknown> {
+    const response = await this.fetch(method, route, body);
+    if (response.status === 404 && options.allowNotFound) return undefined;
+    await assertRemoteOk(response, method, route);
+    if (response.status === 204) return undefined;
+    return (await response.json()) as unknown;
+  }
+
+  private async fetch(
+    method: string,
+    route: string,
+    body?: unknown,
+    options: { etag?: string } = {},
+  ): Promise<Response> {
+    return fetch(`${this.baseUrl}/${route}`, {
+      method,
+      headers: {
+        accept: "application/json",
+        ...(body === undefined ? {} : { "content-type": "application/json" }),
+        ...(options.etag ? { "if-match": options.etag } : {}),
+        ...remoteAuthHeaders(this.options),
+      },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+  }
+}
+
 export class AgentCoordinator {
   readonly paths: CoordinatorPaths;
   readonly storage: Storage;
@@ -440,7 +774,9 @@ export class AgentCoordinator {
     options?: AgentCoordinatorOptions,
   ) {
     this.paths = createPaths(root, options?.stateDir);
-    this.storage = storage ?? new JsonFileStorage(this.paths);
+    const storageOptions =
+      options?.storage ?? readConfiguredStorage(this.paths.dir);
+    this.storage = storage ?? createStorage(this.paths, storageOptions);
   }
 
   async init(
@@ -456,17 +792,19 @@ export class AgentCoordinator {
       defaultLeaseMinutes: 120,
       snapshotPath: ".agent-relay/snapshots/TASKS.md",
       stateDir: options.stateDir,
+      storage: options.storage,
     };
     if (!existsSync(this.paths.config)) {
       await this.storage.writeConfig(config);
-    } else if (options.stateDir) {
+    } else if (options.stateDir || options.storage) {
       const existing = await this.storage.readConfig();
       await this.storage.writeConfig({
         ...existing,
         stateDir: options.stateDir,
+        storage: options.storage ?? existing.storage,
       });
     }
-    if (!existsSync(this.paths.state)) {
+    if (!(await this.storage.hasState())) {
       await this.storage.writeState({
         version: CURRENT_STATE_VERSION,
         tasks: [],
@@ -475,8 +813,10 @@ export class AgentCoordinator {
         messageReceipts: [],
       });
     }
-    await ensureJsonl(this.paths.events);
-    await ensureJsonl(this.paths.messages);
+    if (this.storage.type === "json") {
+      await ensureJsonl(this.paths.events);
+      await ensureJsonl(this.paths.messages);
+    }
     await this.exportSnapshot();
     return existsSync(this.paths.config) ? this.storage.readConfig() : config;
   }
@@ -1062,7 +1402,7 @@ export class AgentCoordinator {
     const config = existsSync(this.paths.config)
       ? await this.storage.readConfig()
       : defaultConfig(this.paths.root);
-    const state = existsSync(this.paths.state)
+    const state = (await this.storage.hasState())
       ? await this.storage.readState()
       : ({
           version: CURRENT_STATE_VERSION,
@@ -1150,7 +1490,7 @@ export class AgentCoordinator {
 
   async migrateState(): Promise<MigrationReport> {
     await this.ensureInitialized();
-    const raw = await readJson<Partial<CoordinatorState>>(this.paths.state);
+    const raw = await this.storage.readRawState();
     const fromVersion =
       typeof raw.version === "number" ? raw.version : undefined;
     const normalized = normalizeState(raw);
@@ -1158,8 +1498,7 @@ export class AgentCoordinator {
     const messages = [];
     let backupPath: string | undefined;
     if (changed) {
-      backupPath = `${this.paths.state}.bak-${timestamp().replace(/[:.]/gu, "-")}`;
-      await copyFile(this.paths.state, backupPath);
+      backupPath = await this.storage.backupState();
       await this.storage.writeState(normalized);
       await this.appendEvent({
         type: "state.migrated",
@@ -1175,7 +1514,7 @@ export class AgentCoordinator {
       fromVersion,
       toVersion: CURRENT_STATE_VERSION,
       changed,
-      statePath: this.paths.state,
+      statePath: this.storage.statePath(),
       backupPath,
       messages,
     };
@@ -1207,7 +1546,7 @@ export class AgentCoordinator {
     });
     checks.push(
       await check("state", async () => {
-        const raw = await readJson<Partial<CoordinatorState>>(this.paths.state);
+        const raw = await this.storage.readRawState();
         if (raw.version !== CURRENT_STATE_VERSION) {
           throw new Error(
             `state schema version ${raw.version ?? "unknown"} requires migration to ${CURRENT_STATE_VERSION}`,
@@ -1260,7 +1599,8 @@ export class AgentCoordinator {
         }
         const snapshotInfo = await stat(snapshotPath);
         const sourceTimes = await Promise.all(
-          [this.paths.state, this.paths.events, this.paths.messages]
+          this.storage
+            .sourcePaths()
             .filter((item) => existsSync(item))
             .map(async (item) => (await stat(item)).mtimeMs),
         );
@@ -1281,7 +1621,7 @@ export class AgentCoordinator {
     });
     return {
       root: this.paths.root,
-      statePath: this.paths.state,
+      statePath: this.storage.statePath(),
       snapshotPath,
       checks,
     };
@@ -1459,7 +1799,7 @@ export class AgentCoordinator {
     }
     if (
       requireState &&
-      (!existsSync(this.paths.config) || !existsSync(this.paths.state))
+      (!existsSync(this.paths.config) || !(await this.storage.hasState()))
     ) {
       throw new Error(`Agent Relay is not initialized in ${this.paths.root}`);
     }
@@ -1524,6 +1864,24 @@ function defaultConfig(root: string): CoordinatorConfig {
   };
 }
 
+function createStorage(
+  paths: CoordinatorPaths,
+  options?: StorageOptions,
+): Storage {
+  if (options?.type === "sqlite") {
+    return new SqliteStorage(
+      paths,
+      options.sqlitePath
+        ? path.resolve(paths.root, options.sqlitePath)
+        : undefined,
+    );
+  }
+  if (options?.type === "remote") {
+    return new RemoteStorage(paths, options);
+  }
+  return new JsonFileStorage(paths);
+}
+
 function resolveStateDir(
   root: string,
   defaultDir: string,
@@ -1565,6 +1923,61 @@ function readConfiguredStateDir(defaultDir: string): string | undefined {
   } catch {
     return undefined;
   }
+}
+
+function readConfiguredStorage(defaultDir: string): StorageOptions | undefined {
+  const configPath = path.join(defaultDir, "config.json");
+  if (!existsSync(configPath)) return undefined;
+  try {
+    const config = JSON.parse(
+      readFileSync(configPath, "utf8"),
+    ) as Partial<CoordinatorConfig>;
+    return normalizeStorageOptions(config.storage);
+  } catch {
+    return undefined;
+  }
+}
+
+function normalizeStorageOptions(
+  storage: CoordinatorConfig["storage"],
+): StorageOptions | undefined {
+  if (!storage) return undefined;
+  if (storage.type === "sqlite") {
+    return {
+      type: "sqlite",
+      sqlitePath: storage.sqlitePath,
+    };
+  }
+  if (storage.type === "remote") {
+    if (!storage.url || !storage.team || !storage.project) return undefined;
+    return {
+      type: "remote",
+      url: storage.url,
+      team: storage.team,
+      project: storage.project,
+      token: storage.token,
+    };
+  }
+  return { type: "json" };
+}
+
+function remoteAuthHeaders(
+  options: Extract<StorageOptions, { type: "remote" }>,
+): Record<string, string> {
+  const token = options.token ?? process.env.AGENT_RELAY_TOKEN;
+  return token ? { authorization: `Bearer ${token}` } : {};
+}
+
+async function assertRemoteOk(
+  response: Response,
+  method: string,
+  route: string,
+): Promise<void> {
+  if (response.ok) return;
+  const text = await response.text();
+  throw new Error(
+    `Remote storage ${method} ${route} failed: ${response.status} ${text}`,
+  );
 }
 
 function normalizeState(input: Partial<CoordinatorState>): CoordinatorState {

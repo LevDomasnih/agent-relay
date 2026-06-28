@@ -1,10 +1,11 @@
 # Release Checklist
 
-This project is a pnpm workspace with three publishable packages:
+This project is a pnpm workspace with four publishable packages:
 
 - `@agent-relay/core`
 - `@agent-relay/cli`
 - `@agent-relay/mcp-server`
+- `@agent-relay/server`
 
 ## Automated Publishing
 
@@ -44,6 +45,7 @@ Packages:
 - `@agent-relay/core`
 - `@agent-relay/cli`
 - `@agent-relay/mcp-server`
+- `@agent-relay/server`
 
 If Trusted Publishing is not enabled yet, add a GitHub Actions secret named
 `NPM_TOKEN` with publish access to these packages. For accounts with 2FA, this
@@ -58,9 +60,10 @@ Trusted Publishing is preferred because it avoids long-lived npm tokens.
 3. Run `pnpm run release:check`.
 4. Smoke-test the CLI in a clean git repository.
 5. Smoke-test the MCP server with a real MCP client.
-6. Check package contents with `pnpm run pack:dry-run`.
-7. Confirm `doctor` and `migrate` work against a legacy state fixture.
-8. Merge a conventional commit to `main`, or run `Conventional Release` manually
+6. Smoke-test the hosted sync server.
+7. Check package contents with `pnpm run pack:dry-run`.
+8. Confirm `doctor` and `migrate` work against a legacy state fixture.
+9. Merge a conventional commit to `main`, or run `Conventional Release` manually
    if you need to re-check the current commit range.
 
 ```bash
@@ -74,12 +77,13 @@ git push origin main
 ## Manual Publish Fallback
 
 Use the commands below only as a fallback after npm scope ownership is resolved.
-Publish core first, then CLI and MCP server:
+Publish core first, then CLI, MCP server, and hosted server:
 
 ```bash
 pnpm --filter @agent-relay/core publish --access public --provenance
 pnpm --filter @agent-relay/cli publish --access public --provenance
 pnpm --filter @agent-relay/mcp-server publish --access public --provenance
+pnpm --filter @agent-relay/server publish --access public --provenance
 ```
 
 ## Post-Publish Smoke

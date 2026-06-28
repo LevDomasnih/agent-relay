@@ -36,5 +36,6 @@ await coordinator.createTask({
 - `@agent-relay/cli` for terminal workflows.
 - `@agent-relay/mcp-server` for Codex, Claude, Cursor, and other MCP
   clients.
+- `@agent-relay/server` for hosted sync, auth, and team/project namespaces.
 
 Full documentation: https://github.com/LevDomasnih/agent-relay#readme

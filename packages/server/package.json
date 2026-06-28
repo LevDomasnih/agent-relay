@@ -1,0 +1,46 @@
+{
+  "name": "@agent-relay/server",
+  "version": "0.1.5",
+  "description": "Hosted sync backend for Agent Relay teams.",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LevDomasnih/agent-relay.git",
+    "directory": "packages/server"
+  },
+  "bugs": {
+    "url": "https://github.com/LevDomasnih/agent-relay/issues"
+  },
+  "homepage": "https://github.com/LevDomasnih/agent-relay#readme",
+  "keywords": [
+    "ai-agents",
+    "coding-agents",
+    "coordination",
+    "sync",
+    "teams",
+    "sqlite"
+  ],
+  "bin": {
+    "agent-relay-server": "dist/index.js"
+  },
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.js.map",
+    "dist/**/*.d.ts",
+    "dist/**/*.d.ts.map",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "check": "tsc -b --pretty false",
+    "smoke": "node scripts/smoke-server.mjs"
+  },
+  "dependencies": {
+    "@agent-relay/core": "0.1.5"
+  }
+}

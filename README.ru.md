@@ -48,7 +48,7 @@ State живет рядом с проектом:
 
 ## Статус
 
-Agent Relay готов к первому публичному release из исходников. CLI, core package, MCP server, state migrations, CI checks, package dry-runs, CLI smoke test и реальный MCP client smoke test реализованы и проверены.
+Agent Relay готов к первому публичному release из исходников. CLI, core package, MCP server, hosted sync server, JSON/SQLite/remote storage adapters, state migrations, CI checks, package dry-runs, CLI smoke test, реальный MCP client smoke test и hosted server smoke test реализованы и проверены.
 
 npm publishing пока ожидает финального публичного package scope или rename.
 

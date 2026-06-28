@@ -5,6 +5,7 @@ import {
   type HandoffStatus,
   type LockMode,
   type MessageKind,
+  type StorageOptions,
   TASK_STATUSES,
   findProjectRoot,
   type TaskStatus,
@@ -26,15 +27,44 @@ program
   .description("Initialize Agent Relay in the current project.")
   .option("--project-name <name>", "Project name")
   .option("--state-dir <path>", "Shared state directory for worktree families")
-  .action(async (options: { projectName?: string; stateDir?: string }) => {
-    const coordinator = new AgentCoordinator(process.cwd(), undefined, {
-      stateDir: options.stateDir,
-    });
-    const config = await coordinator.init(options.projectName, {
-      stateDir: options.stateDir,
-    });
-    console.log(JSON.stringify({ ok: true, config }, null, 2));
-  });
+  .option("--storage <type>", "Storage adapter: json, sqlite, or remote")
+  .option(
+    "--sqlite-path <path>",
+    "SQLite database path when using sqlite storage",
+  )
+  .option("--remote-url <url>", "Remote backend URL when using remote storage")
+  .option("--team <team>", "Remote team slug when using remote storage")
+  .option(
+    "--project <project>",
+    "Remote project slug when using remote storage",
+  )
+  .option(
+    "--token <token>",
+    "Remote auth token; AGENT_RELAY_TOKEN is preferred",
+  )
+  .action(
+    async (options: {
+      projectName?: string;
+      stateDir?: string;
+      storage?: string;
+      sqlitePath?: string;
+      remoteUrl?: string;
+      team?: string;
+      project?: string;
+      token?: string;
+    }) => {
+      const storage = parseStorageOptions(options);
+      const coordinator = new AgentCoordinator(process.cwd(), undefined, {
+        stateDir: options.stateDir,
+        storage,
+      });
+      const config = await coordinator.init(options.projectName, {
+        stateDir: options.stateDir,
+        storage,
+      });
+      console.log(JSON.stringify({ ok: true, config }, null, 2));
+    },
+  );
 
 program
   .command("status")
@@ -766,6 +796,45 @@ function parseHandoffStatus(status: string): HandoffStatus {
 function parseShell(shell: string): "bash" | "zsh" | "fish" {
   if (shell === "bash" || shell === "zsh" || shell === "fish") return shell;
   throw new Error(`Invalid shell "${shell}". Expected one of: bash, zsh, fish`);
+}
+
+function parseStorageOptions(options: {
+  storage?: string;
+  sqlitePath?: string;
+  remoteUrl?: string;
+  team?: string;
+  project?: string;
+  token?: string;
+}): StorageOptions | undefined {
+  const { storage, sqlitePath, remoteUrl, team, project, token } = options;
+  if (!storage && !sqlitePath && !remoteUrl && !team && !project && !token) {
+    return undefined;
+  }
+  if (!storage || storage === "json") {
+    if (sqlitePath || remoteUrl || team || project || token) {
+      throw new Error(
+        "--sqlite-path, --remote-url, --team, --project, and --token require --storage sqlite or --storage remote",
+      );
+    }
+    return storage ? { type: "json" } : undefined;
+  }
+  if (storage === "sqlite") {
+    if (remoteUrl || team || project || token) {
+      throw new Error("remote options require --storage remote");
+    }
+    return { type: "sqlite", sqlitePath };
+  }
+  if (storage === "remote") {
+    if (!remoteUrl || !team || !project) {
+      throw new Error(
+        "--storage remote requires --remote-url, --team, and --project",
+      );
+    }
+    return { type: "remote", url: remoteUrl, team, project, token };
+  }
+  throw new Error(
+    `Invalid storage "${storage}". Expected one of: json, sqlite, remote`,
+  );
 }
 
 const completionCommands = [

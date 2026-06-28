@@ -48,7 +48,7 @@ Sin daemon. Sin database server. Sin state en `/tmp`.
 
 ## Estado
 
-Agent Relay está listo desde source para el primer release público. CLI, core package, MCP server, state migrations, CI checks, package dry-runs, CLI smoke test y un smoke test real con MCP client están implementados y verificados.
+Agent Relay está listo desde source para el primer release público. CLI, core package, MCP server, hosted sync server, JSON/SQLite/remote storage adapters, state migrations, CI checks, package dry-runs, CLI smoke test, un smoke test real con MCP client y hosted server smoke test están implementados y verificados.
 
 npm publishing queda pendiente hasta tener el package scope público final o un rename.
 

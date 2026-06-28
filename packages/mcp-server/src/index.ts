@@ -10,6 +10,7 @@ import {
   type HandoffStatus,
   type LockMode,
   type MessageKind,
+  type StorageOptions,
   type TaskStatus,
 } from "@agent-relay/core";
 import { z } from "zod";
@@ -51,6 +52,16 @@ const messageKindSchema = z
     "decision",
   ])
   .optional();
+const storageSchema = z
+  .object({
+    type: z.enum(["json", "sqlite", "remote"]),
+    sqlitePath: z.string().optional(),
+    url: z.string().optional(),
+    team: z.string().optional(),
+    project: z.string().optional(),
+    token: z.string().optional(),
+  })
+  .optional();
 
 server.registerTool(
   "init_project",
@@ -60,14 +71,19 @@ server.registerTool(
     inputSchema: z.object({
       projectName: z.string().optional(),
       stateDir: z.string().optional(),
+      storage: storageSchema,
       root: z.string().optional(),
     }),
   },
-  async ({ projectName, stateDir, root }) => {
+  async ({ projectName, stateDir, storage, root }) => {
     const coordinator = new AgentCoordinator(root ?? process.cwd(), undefined, {
       stateDir,
+      storage: storage as StorageOptions | undefined,
     });
-    const config = await coordinator.init(projectName, { stateDir });
+    const config = await coordinator.init(projectName, {
+      stateDir,
+      storage: storage as StorageOptions | undefined,
+    });
     return jsonResult({ ok: true, config });
   },
 );

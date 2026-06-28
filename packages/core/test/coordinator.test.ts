@@ -56,6 +56,41 @@ test("shared stateDir lets separate checkouts use the same coordinator state", a
   );
 });
 
+test("sqlite storage persists state and is discovered from config", async () => {
+  const root = await tempGitRepo();
+  const coordinator = new AgentCoordinator(root, undefined, {
+    storage: { type: "sqlite" },
+  });
+
+  await coordinator.init("sqlite-sample", {
+    storage: { type: "sqlite" },
+  });
+  await coordinator.createTask({
+    displayId: "AGT-20260628-001",
+    title: "SQLite task",
+    scope: "long-lived state",
+    filesGlobs: ["src/**"],
+  });
+
+  const config = JSON.parse(
+    await readFile(path.join(root, ".agent-relay/config.json"), "utf8"),
+  ) as { storage?: { type?: string } };
+  const reloaded = new AgentCoordinator(root);
+  const tasks = await reloaded.listTasks();
+  const doctor = await reloaded.doctor();
+
+  assert.equal(config.storage?.type, "sqlite");
+  await access(path.join(root, ".agent-relay/state.sqlite"));
+  await assert.rejects(
+    access(path.join(root, ".agent-relay/state.json")),
+    /ENOENT/u,
+  );
+  assert.equal(tasks.length, 1);
+  assert.equal(tasks[0]?.displayId, "AGT-20260628-001");
+  assert.equal(doctor.statePath, path.join(root, ".agent-relay/state.sqlite"));
+  assert.ok(doctor.checks.every((check) => check.ok));
+});
+
 test("legacy .agent-coordinator state remains readable after rename", async () => {
   const root = await tempGitRepo();
   const legacyDir = path.join(root, ".agent-coordinator");

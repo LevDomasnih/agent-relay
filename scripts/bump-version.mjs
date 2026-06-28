@@ -14,6 +14,7 @@ const packageJsonPaths = [
   "packages/core/package.json",
   "packages/cli/package.json",
   "packages/mcp-server/package.json",
+  "packages/server/package.json",
 ];
 
 const lockfilePath = "pnpm-lock.yaml";

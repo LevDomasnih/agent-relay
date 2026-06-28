@@ -47,6 +47,9 @@ jobs:
       - name: Smoke-test MCP server
         run: pnpm run smoke:mcp
 
+      - name: Smoke-test hosted server
+        run: pnpm run smoke:server
+
       - name: Verify package contents
         run: pnpm run pack:dry-run
 

@@ -50,7 +50,7 @@ Daemon なし。Database server なし。`/tmp` state なし。
 
 ## Status
 
-Agent Relay は source から最初の public release を出せる状態です。CLI、core package、MCP server、state migrations、CI checks、package dry-runs、CLI smoke test、実際の MCP client smoke test は実装済みで検証済みです。
+Agent Relay は source から最初の public release を出せる状態です。CLI、core package、MCP server、hosted sync server、JSON/SQLite/remote storage adapters、state migrations、CI checks、package dry-runs、CLI smoke test、実際の MCP client smoke test、hosted server smoke test は実装済みで検証済みです。
 
 npm publishing は最終的な public package scope または rename が決まるまで pending です。
 

@@ -40,20 +40,21 @@ State is project-local and portable:
 ```text
 .agent-relay/
   config.json
-  state.json
-  events.jsonl
-  messages.jsonl
+  state.json          # default JSON storage
+  state.sqlite        # optional SQLite storage
   snapshots/
     TASKS.md
 ```
 
-No daemon. No database server. No `/tmp` state.
+No `/tmp` state. Start with local files, move to SQLite for long-lived projects,
+or point the same CLI/MCP protocol at a hosted team backend.
 
 ## Status
 
 Agent Relay is source-ready for a first public release. The CLI, core package,
-MCP server, state migrations, CI checks, package dry-runs, CLI smoke test, and
-real MCP client smoke test are implemented and verified.
+MCP server, hosted sync server, JSON/SQLite/remote storage adapters, state
+migrations, CI checks, package dry-runs, CLI smoke test, real MCP client smoke
+test, and hosted server smoke test are implemented and verified.
 
 npm publishing is intentionally pending until the final public package scope is
 available or renamed.
@@ -88,6 +89,25 @@ For a family of git worktrees, put shared coordinator state in one directory:
 
 ```bash
 agent-relay init --state-dir ../.agent-relay-shared
+```
+
+For larger long-lived projects, use SQLite storage:
+
+```bash
+agent-relay init --storage sqlite
+```
+
+For a distributed team, run the hosted sync backend and initialize each checkout
+against the same team/project namespace:
+
+```bash
+AGENT_RELAY_SERVER_TOKEN=secret agent-relay-server
+
+AGENT_RELAY_TOKEN=secret agent-relay init \
+  --storage remote \
+  --remote-url http://localhost:3737 \
+  --team platform \
+  --project web-app
 ```
 
 Create a task:
@@ -424,6 +444,62 @@ agent-relay completion zsh > _agent-relay
 agent-relay completion fish > ~/.config/fish/completions/agent-relay.fish
 ```
 
+## Storage Modes
+
+| Mode     | Use for                           | State location                         |
+| -------- | --------------------------------- | -------------------------------------- |
+| `json`   | Default local projects            | `.agent-relay/state.json` + JSONL logs |
+| `sqlite` | Larger long-lived local projects  | `.agent-relay/state.sqlite`            |
+| `remote` | Distributed teams and hosted sync | `agent-relay-server` over HTTP         |
+
+`agent-relay init --storage sqlite` keeps the same CLI and MCP behavior while
+storing state, events, and messages in SQLite.
+
+`agent-relay init --storage remote` writes a local config that points to a
+hosted backend. All normal commands (`create`, `claim`, `message`, `doctor`,
+MCP tools, and verification) use the remote team/project state.
+
+## Hosted Sync Server
+
+Run the backend:
+
+```bash
+AGENT_RELAY_SERVER_TOKEN=secret \
+AGENT_RELAY_SERVER_DATA_DIR=.agent-relay-server \
+agent-relay-server
+```
+
+The server stores team/project data in SQLite and exposes:
+
+```text
+GET  /health
+GET  /v1/teams/:team/projects/:project/config
+PUT  /v1/teams/:team/projects/:project/config
+GET  /v1/teams/:team/projects/:project/state
+PUT  /v1/teams/:team/projects/:project/state
+GET  /v1/teams/:team/projects/:project/events
+POST /v1/teams/:team/projects/:project/events
+GET  /v1/teams/:team/projects/:project/messages
+POST /v1/teams/:team/projects/:project/messages
+POST /v1/teams/:team/projects/:project/backups
+```
+
+Auth is Bearer-token based. For one admin token, set
+`AGENT_RELAY_SERVER_TOKEN`. For multiple teams or roles, set
+`AGENT_RELAY_SERVER_TOKENS`:
+
+```json
+{
+  "platform-admin-token": { "team": "platform", "role": "admin" },
+  "platform-read-token": { "team": "platform", "role": "read" }
+}
+```
+
+Roles:
+
+- `admin` and `member` can read and write.
+- `read` can only read team/project state.
+
 ## Multi-Worktree Caveat
 
 By default one checkout has one `.agent-relay` state. If agents work in
@@ -459,11 +535,12 @@ pnpm run test
 pnpm run build
 ```
 
-Smoke-test the built CLI and MCP server:
+Smoke-test the built CLI, MCP server, and hosted sync backend:
 
 ```bash
 pnpm run smoke:cli
 pnpm run smoke:mcp
+pnpm run smoke:server
 ```
 
 Release notes live in [docs/release.md](docs/release.md).
@@ -480,15 +557,17 @@ configured. See [docs/release.md](docs/release.md) for details.
 Implemented:
 
 - Shared state directory for worktree families.
+- SQLite storage adapter for larger long-lived projects.
+- Remote backend for distributed teams.
+- Hosted sync with Bearer auth and team/project namespaces.
 - Richer MCP client smoke tests.
 - Generated shell completions.
 
 ## Roadmap
 
 - First npm release after the public package scope is available or renamed.
-- SQLite storage adapter for larger long-lived projects.
-- Remote backend for distributed teams.
-- Hosted sync, auth, and team mode.
+- Web dashboard.
+- Hosted multi-tenant deployment hardening.
 
 ## License
 
