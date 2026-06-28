@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { access, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { access, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -69,6 +69,38 @@ test("claim rejects active exclusive scope conflicts", async () => {
     filesGlobs: ["src/page.ts"],
   });
 
+  await coordinator.claimTask({
+    taskId: "AGT-20260628-001",
+    agent: "agent-a",
+    agentInstanceId: "agent_a",
+  });
+
+  await assert.rejects(
+    coordinator.claimTask({
+      taskId: "AGT-20260628-002",
+      agent: "agent-b",
+      agentInstanceId: "agent_b",
+    }),
+    /Scope conflict/u,
+  );
+});
+
+test("glob matcher detects nested and extension scopes", async () => {
+  const root = await tempGitRepo();
+  const coordinator = new AgentCoordinator(root);
+  await coordinator.init("sample");
+  await coordinator.createTask({
+    displayId: "AGT-20260628-001",
+    title: "Vue files",
+    scope: "frontend",
+    filesGlobs: ["src/**/*.vue"],
+  });
+  await coordinator.createTask({
+    displayId: "AGT-20260628-002",
+    title: "Settings page",
+    scope: "frontend",
+    filesGlobs: ["src/pages/settings/Profile.vue"],
+  });
   await coordinator.claimTask({
     taskId: "AGT-20260628-001",
     agent: "agent-a",
@@ -376,6 +408,61 @@ test("explain can resolve task from commit trailers", async () => {
 
   assert.equal(explanation.task?.displayId, "AGT-20260628-001");
   assert.equal(explanation.commit?.trailers["Agent"], "test-agent");
+});
+
+test("verify-commit-range checks trailers and task scopes", async () => {
+  const root = await tempGitRepo();
+  const coordinator = new AgentCoordinator(root);
+  await coordinator.init("sample");
+  await coordinator.createTask({
+    displayId: "AGT-20260628-001",
+    title: "Scoped task",
+    scope: "src",
+    filesGlobs: ["src/**"],
+  });
+  await writeFile(path.join(root, "README.md"), "initial\n");
+  await execFileAsync("git", ["add", "."], { cwd: root });
+  await execFileAsync("git", ["commit", "-m", "chore: initial"], { cwd: root });
+  const base = (
+    await execFileAsync("git", ["rev-parse", "HEAD"], { cwd: root })
+  ).stdout.trim();
+  await mkdir(path.join(root, "src"), { recursive: true });
+  await writeFile(path.join(root, "src/file.ts"), "ok\n");
+  await execFileAsync("git", ["add", "."], { cwd: root });
+  await execFileAsync(
+    "git",
+    [
+      "commit",
+      "-m",
+      "feat: scoped",
+      "-m",
+      "Agent: agent-a\nAgent-Task: AGT-20260628-001",
+    ],
+    { cwd: root },
+  );
+  await writeFile(path.join(root, "outside.ts"), "bad\n");
+  await execFileAsync("git", ["add", "."], { cwd: root });
+  await execFileAsync(
+    "git",
+    [
+      "commit",
+      "-m",
+      "feat: outside",
+      "-m",
+      "Agent: agent-a\nAgent-Task: AGT-20260628-001",
+    ],
+    { cwd: root },
+  );
+
+  const report = await coordinator.verifyCommitRange({
+    range: `${base}..HEAD`,
+    requireKnownTasks: true,
+  });
+
+  assert.equal(report.ok, false);
+  assert.equal(report.commits.length, 2);
+  assert.deepEqual(report.commits[0]?.filesOutsideTaskScope, []);
+  assert.deepEqual(report.commits[1]?.filesOutsideTaskScope, ["outside.ts"]);
 });
 
 test("install-hooks writes executable local git hooks", async () => {

@@ -194,6 +194,12 @@ agent-coordinator install-hooks
 export AGENT_COORDINATOR_INSTANCE=agent_123
 ```
 
+用于 PR/CI：
+
+```bash
+agent-coordinator verify-commit-range --range "origin/main..HEAD"
+```
+
 设计原则：
 
 ```text
@@ -253,7 +259,7 @@ mine, conflicts, message, inbox, inbox-read, presence, watch
 handoff request, handoff respond, handoff list
 snapshot, explain, doctor
 git-identity, git-identity-reset
-install-hooks, verify-worktree, verify-commit
+install-hooks, verify-worktree, verify-commit, verify-commit-range
 ```
 
 ## Development

@@ -637,6 +637,28 @@ server.registerTool(
   },
 );
 
+server.registerTool(
+  "verify_commit_range",
+  {
+    title: "Verify Commit Range",
+    description:
+      "Verify commit trailers and changed files across a git revision range.",
+    inputSchema: z.object({
+      range: z.string(),
+      requireKnownTasks: z.boolean().optional(),
+      root: z.string().optional(),
+    }),
+  },
+  async ({ range, requireKnownTasks, root }) => {
+    const coordinator = await loadCoordinator(root);
+    const report = await coordinator.verifyCommitRange({
+      range,
+      requireKnownTasks,
+    });
+    return jsonResult(report);
+  },
+);
+
 async function loadCoordinator(root?: string): Promise<AgentCoordinator> {
   return new AgentCoordinator(root ?? (await findProjectRoot()));
 }

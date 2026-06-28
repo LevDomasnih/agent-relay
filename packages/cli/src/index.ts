@@ -623,6 +623,29 @@ program
     },
   );
 
+program
+  .command("verify-commit-range")
+  .description(
+    "Verify commit trailers and changed files across a git revision range.",
+  )
+  .requiredOption(
+    "--range <rev>",
+    "Git revision range, for example origin/main..HEAD",
+  )
+  .option(
+    "--require-known-tasks",
+    "Fail when Agent-Task does not resolve to a local coordinator task",
+  )
+  .action(async (options: { range: string; requireKnownTasks?: boolean }) => {
+    const coordinator = await loadCoordinator();
+    const report = await coordinator.verifyCommitRange({
+      range: options.range,
+      requireKnownTasks: options.requireKnownTasks,
+    });
+    console.log(JSON.stringify(report, null, 2));
+    if (!report.ok) process.exitCode = 1;
+  });
+
 program.parseAsync().catch((error: unknown) => {
   console.error(error instanceof Error ? error.message : String(error));
   process.exit(1);

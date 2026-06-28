@@ -1,0 +1,21 @@
+name: Agent Coordinator
+
+on:
+  pull_request:
+
+jobs:
+  verify-agent-coordination:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Verify agent commit trailers
+        run: |
+          npx @agent-coordinator/cli init --project-name "${{ github.repository }}"
+          npx @agent-coordinator/cli verify-commit-range --range "origin/${{ github.base_ref }}..HEAD"

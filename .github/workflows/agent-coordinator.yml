@@ -1,0 +1,48 @@
+name: Agent Coordinator
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Format
+        run: pnpm run format
+
+      - name: Typecheck
+        run: pnpm run check
+
+      - name: Test
+        run: pnpm run test
+
+      - name: Build
+        run: pnpm run build
+
+      - name: Verify agent commit trailers
+        if: github.event_name == 'pull_request'
+        run: |
+          pnpm --filter @agent-coordinator/cli agent-coordinator init --project-name agent-coordinator-ci
+          pnpm --filter @agent-coordinator/cli agent-coordinator verify-commit-range --range "origin/${{ github.base_ref }}..HEAD"

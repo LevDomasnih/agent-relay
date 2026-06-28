@@ -228,6 +228,15 @@ The design rule:
 MCP is the protocol. Hooks and checks are the enforcement.
 ```
 
+For PR and CI checks, verify the commit range:
+
+```bash
+agent-coordinator verify-commit-range --range "origin/main..HEAD"
+```
+
+This checks commit trailers and, when the referenced task exists in local
+coordinator state, verifies changed files against that task's claimed scope.
+
 ## Git Attribution
 
 Set local git identity for the current agent:
@@ -297,29 +306,30 @@ client so the server never writes coordinator state in the wrong directory.
 
 ### MCP Tools
 
-| Tool                 | Purpose                                         |
-| -------------------- | ----------------------------------------------- |
-| `init_project`       | Initialize `.agent-coordinator`                 |
-| `create_task`        | Create a task                                   |
-| `claim_task`         | Claim task scopes                               |
-| `update_task`        | Update status, checks, blockers, and next steps |
-| `heartbeat`          | Extend a lease                                  |
-| `release_task`       | Release a lease                                 |
-| `list_tasks`         | List tasks                                      |
-| `list_my_tasks`      | List tasks by agent, instance, or thread        |
-| `detect_conflicts`   | Detect active scope conflicts                   |
-| `request_handoff`    | Request a handoff                               |
-| `respond_handoff`    | Respond to a handoff                            |
-| `list_handoffs`      | List handoff requests                           |
-| `post_message`       | Append a message                                |
-| `export_snapshot`    | Generate `TASKS.md`                             |
-| `explain`            | Explain a task or commit                        |
-| `git_identity`       | Set local git identity                          |
-| `git_identity_reset` | Restore previous git identity                   |
-| `doctor`             | Diagnose setup                                  |
-| `verify_worktree`    | Check modified files against claims             |
-| `verify_commit`      | Check staged files and trailers                 |
-| `install_hooks`      | Install local git hooks                         |
+| Tool                  | Purpose                                              |
+| --------------------- | ---------------------------------------------------- |
+| `init_project`        | Initialize `.agent-coordinator`                      |
+| `create_task`         | Create a task                                        |
+| `claim_task`          | Claim task scopes                                    |
+| `update_task`         | Update status, checks, blockers, and next steps      |
+| `heartbeat`           | Extend a lease                                       |
+| `release_task`        | Release a lease                                      |
+| `list_tasks`          | List tasks                                           |
+| `list_my_tasks`       | List tasks by agent, instance, or thread             |
+| `detect_conflicts`    | Detect active scope conflicts                        |
+| `request_handoff`     | Request a handoff                                    |
+| `respond_handoff`     | Respond to a handoff                                 |
+| `list_handoffs`       | List handoff requests                                |
+| `post_message`        | Append a message                                     |
+| `export_snapshot`     | Generate `TASKS.md`                                  |
+| `explain`             | Explain a task or commit                             |
+| `git_identity`        | Set local git identity                               |
+| `git_identity_reset`  | Restore previous git identity                        |
+| `doctor`              | Diagnose setup                                       |
+| `verify_worktree`     | Check modified files against claims                  |
+| `verify_commit`       | Check staged files and trailers                      |
+| `verify_commit_range` | Check commit trailers and task scopes across a range |
+| `install_hooks`       | Install local git hooks                              |
 
 ## Concepts
 
@@ -389,6 +399,7 @@ install-hooks
 doctor
 verify-worktree
 verify-commit
+verify-commit-range
 ```
 
 Run `agent-coordinator <command> --help` for command-specific options.
@@ -430,7 +441,6 @@ Release notes live in [docs/release.md](docs/release.md).
 - SQLite storage adapter.
 - Shared state directory for worktree families.
 - Remote backend for distributed teams.
-- `verify-commit-range` and PR checks.
 - Richer MCP client smoke tests.
 - Generated shell completions.
 

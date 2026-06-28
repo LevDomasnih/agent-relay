@@ -42,6 +42,7 @@
     "build": "tsc -b",
     "check": "tsc -b --pretty false"
   },
-  "dependencies": {},
-  "devDependencies": {}
+  "dependencies": {
+    "minimatch": "^10.2.5"
+  }
 }

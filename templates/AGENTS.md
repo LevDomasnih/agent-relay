@@ -25,5 +25,6 @@ Commit rules:
 - Staged files must fit the active claim for the agent instance.
 - If a commit touches a shared file, the handoff or takeover reason must be in
   coordinator events/messages.
+- Pull requests should pass `agent-coordinator verify-commit-range`.
 
 Do not treat generated Markdown snapshots as the source of truth.

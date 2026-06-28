@@ -15,6 +15,7 @@ import path from "node:path";
 import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { promisify } from "node:util";
+import { minimatch } from "minimatch";
 
 const execFileAsync = promisify(execFile);
 
@@ -262,6 +263,29 @@ export type VerifyCommitReport = VerifyWorktreeReport & {
   stagedFiles: string[];
   gitIdentity: { name?: string; email?: string };
   missingTrailers: string[];
+};
+
+export type VerifyCommitRangeInput = {
+  range: string;
+  requireKnownTasks?: boolean;
+};
+
+export type VerifyCommitRangeCommit = {
+  sha: string;
+  subject: string;
+  files: string[];
+  trailers: Record<string, string>;
+  missingTrailers: string[];
+  taskId?: string;
+  taskDisplayId?: string;
+  unknownTask: boolean;
+  filesOutsideTaskScope: string[];
+};
+
+export type VerifyCommitRangeReport = {
+  ok: boolean;
+  range: string;
+  commits: VerifyCommitRangeCommit[];
 };
 
 export type RequestHandoffInput = {
@@ -1183,6 +1207,46 @@ export class AgentCoordinator {
     return { ...base, ok, stagedFiles, gitIdentity, missingTrailers };
   }
 
+  async verifyCommitRange(
+    input: VerifyCommitRangeInput,
+  ): Promise<VerifyCommitRangeReport> {
+    await this.ensureInitialized();
+    const state = await this.storage.readState();
+    const commits = await listCommitRange(this.paths.root, input.range);
+    const checked = commits.map((commit) => {
+      const taskId = commit.trailers["Agent-Task"];
+      const task = taskId
+        ? state.tasks.find(
+            (item) => item.id === taskId || item.displayId === taskId,
+          )
+        : undefined;
+      const filesOutsideTaskScope = task
+        ? commit.files.filter(
+            (file) =>
+              !task.lockScopes.some((scope) =>
+                pathMatchesScope(file, scope.glob),
+              ),
+          )
+        : [];
+      return {
+        ...commit,
+        missingTrailers: missingCommitTrailersFromMap(commit.trailers),
+        taskId: task?.id ?? taskId,
+        taskDisplayId: task?.displayId,
+        unknownTask: Boolean(taskId && !task),
+        filesOutsideTaskScope,
+      };
+    });
+    const ok = checked.every((commit) => {
+      return (
+        commit.missingTrailers.length === 0 &&
+        commit.filesOutsideTaskScope.length === 0 &&
+        (!input.requireKnownTasks || !commit.unknownTask)
+      );
+    });
+    return { ok, range: input.range, commits: checked };
+  }
+
   async installHooks(agentInstanceEnv = "AGENT_COORDINATOR_INSTANCE"): Promise<{
     preCommit: string;
     commitMsg: string;
@@ -1584,7 +1648,9 @@ function scopesOverlap(left: string, right: string): boolean {
   if (a === b) return true;
   if (a === "**" || b === "**") return true;
   return (
-    pathMatchesScope(a, b) || pathMatchesScope(b, a) || prefixOverlap(a, b)
+    globIntersectsByPrefix(a, b) ||
+    pathMatchesScope(a, b) ||
+    pathMatchesScope(b, a)
   );
 }
 
@@ -1597,23 +1663,30 @@ function pathMatchesScope(file: string, scope: string): boolean {
       normalizedFile === normalizedScope ||
       normalizedFile.startsWith(`${normalizedScope}/`)
     );
-  const escaped = normalizedScope
-    .split("**")
-    .map((part) =>
-      part.replace(/[.+^${}()|[\]\\]/gu, "\\$&").replace(/\*/gu, "[^/]*"),
-    )
-    .join(".*");
-  return new RegExp(`^${escaped}$`, "u").test(normalizedFile);
+  return minimatch(normalizedFile, normalizedScope, {
+    dot: true,
+    nocase: false,
+    nonegate: true,
+  });
 }
 
-function prefixOverlap(left: string, right: string): boolean {
-  const aPrefix = left.replace(/\*\*?$/u, "");
-  const bPrefix = right.replace(/\*\*?$/u, "");
+function globIntersectsByPrefix(left: string, right: string): boolean {
+  const aPrefix = staticGlobPrefix(left);
+  const bPrefix = staticGlobPrefix(right);
   return (
-    aPrefix.length > 0 &&
-    bPrefix.length > 0 &&
-    (aPrefix.startsWith(bPrefix) || bPrefix.startsWith(aPrefix))
+    aPrefix === "" ||
+    bPrefix === "" ||
+    aPrefix.startsWith(bPrefix) ||
+    bPrefix.startsWith(aPrefix)
   );
+}
+
+function staticGlobPrefix(value: string): string {
+  const normalized = normalizeScope(value);
+  const globIndex = normalized.search(/[*?[{]/u);
+  const prefix = globIndex === -1 ? normalized : normalized.slice(0, globIndex);
+  const slash = prefix.lastIndexOf("/");
+  return slash === -1 ? "" : prefix.slice(0, slash + 1);
 }
 
 function normalizeScope(value: string): string {
@@ -1787,6 +1860,47 @@ async function readCommitExplanation(
   return { sha: resolvedSha, subject, trailers: parseTrailers(message) };
 }
 
+async function listCommitRange(
+  root: string,
+  range: string,
+): Promise<
+  Array<{
+    sha: string;
+    subject: string;
+    files: string[];
+    trailers: Record<string, string>;
+  }>
+> {
+  const { stdout } = await execFileAsync(
+    "git",
+    ["rev-list", "--reverse", range],
+    { cwd: root },
+  );
+  const shas = stdout
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const commits = [];
+  for (const sha of shas) {
+    const message = (
+      await execFileAsync("git", ["show", "-s", "--format=%B", sha], {
+        cwd: root,
+      })
+    ).stdout.trimEnd();
+    const files = (
+      await execFileAsync("git", ["show", "--format=", "--name-only", sha], {
+        cwd: root,
+      })
+    ).stdout
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+    const [subject = ""] = message.split("\n");
+    commits.push({ sha, subject, files, trailers: parseTrailers(message) });
+  }
+  return commits;
+}
+
 function parseTrailers(message: string): Record<string, string> {
   const trailers: Record<string, string> = {};
   for (const line of message.split("\n")) {
@@ -1798,10 +1912,13 @@ function parseTrailers(message: string): Record<string, string> {
 
 function missingCommitTrailers(message?: string): string[] {
   if (!message) return [];
-  return ["Agent:", "Agent-Task:"].filter(
-    (trailer) =>
-      !new RegExp(`^${trailer.replace(":", "")}:\\s+`, "mu").test(message),
-  );
+  return missingCommitTrailersFromMap(parseTrailers(message));
+}
+
+function missingCommitTrailersFromMap(
+  trailers: Record<string, string>,
+): string[] {
+  return ["Agent", "Agent-Task"].filter((trailer) => !trailers[trailer]);
 }
 
 async function readJson<T>(filePath: string): Promise<T> {
