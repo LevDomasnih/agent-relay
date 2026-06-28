@@ -1,5 +1,5 @@
 {
-  "name": "@agent-relay/cli",
+  "name": "@levdomasnih/agent-relay-cli",
   "version": "0.1.0",
   "description": "CLI for Agent Relay.",
   "type": "module",
@@ -40,7 +40,7 @@
     "check": "tsc -b --pretty false"
   },
   "dependencies": {
-    "@agent-relay/core": "workspace:*",
+    "@levdomasnih/agent-relay-core": "workspace:*",
     "commander": "^14.0.2"
   }
 }

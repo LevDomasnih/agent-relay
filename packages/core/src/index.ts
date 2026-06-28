@@ -1230,7 +1230,7 @@ export class AgentCoordinator {
           "packages/mcp-server/package.json",
         );
         if (existsSync(pkg)) return "workspace MCP package present";
-        return "install @agent-relay/mcp-server for MCP usage";
+        return "install @levdomasnih/agent-relay-mcp-server for MCP usage";
       }),
     );
     const config = existsSync(this.paths.config)

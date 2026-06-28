@@ -10,7 +10,7 @@ import {
   type LockMode,
   type MessageKind,
   type TaskStatus,
-} from "@agent-relay/core";
+} from "@levdomasnih/agent-relay-core";
 import { z } from "zod";
 
 const server = new McpServer({ name: "agent-relay", version: "0.1.0" });

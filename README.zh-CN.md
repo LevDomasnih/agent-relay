@@ -56,14 +56,14 @@ git clone https://github.com/LevDomasnih/agent-relay.git
 cd agent-relay
 pnpm install
 pnpm run build
-pnpm --filter @agent-relay/cli agent-relay --help
+pnpm --filter @levdomasnih/agent-relay-cli agent-relay --help
 ```
 
 首次 npm release 后的预期用法：
 
 ```bash
-npx @agent-relay/cli init
-npx @agent-relay/cli doctor
+npx @levdomasnih/agent-relay-cli init
+npx @levdomasnih/agent-relay-cli doctor
 ```
 
 ## 快速开始

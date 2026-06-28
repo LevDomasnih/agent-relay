@@ -57,14 +57,14 @@ git clone https://github.com/LevDomasnih/agent-relay.git
 cd agent-relay
 pnpm install
 pnpm run build
-pnpm --filter @agent-relay/cli agent-relay --help
+pnpm --filter @levdomasnih/agent-relay-cli agent-relay --help
 ```
 
 После первого npm release:
 
 ```bash
-npx @agent-relay/cli init
-npx @agent-relay/cli doctor
+npx @levdomasnih/agent-relay-cli init
+npx @levdomasnih/agent-relay-cli doctor
 ```
 
 ## Быстрый старт

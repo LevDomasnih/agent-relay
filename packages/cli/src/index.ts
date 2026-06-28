@@ -8,7 +8,7 @@ import {
   TASK_STATUSES,
   findProjectRoot,
   type TaskStatus,
-} from "@agent-relay/core";
+} from "@levdomasnih/agent-relay-core";
 import { readFile } from "node:fs/promises";
 
 const program = new Command();

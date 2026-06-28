@@ -1,5 +1,5 @@
 {
-  "name": "@agent-relay/mcp-server",
+  "name": "@levdomasnih/agent-relay-mcp-server",
   "version": "0.1.0",
   "description": "MCP server for Agent Relay.",
   "type": "module",
@@ -40,7 +40,7 @@
     "check": "tsc -b --pretty false"
   },
   "dependencies": {
-    "@agent-relay/core": "workspace:*",
+    "@levdomasnih/agent-relay-core": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "zod": "^4.1.13"
   }

@@ -2,9 +2,9 @@
 
 This project is a pnpm workspace with three publishable packages:
 
-- `@agent-relay/core`
-- `@agent-relay/cli`
-- `@agent-relay/mcp-server`
+- `@levdomasnih/agent-relay-core`
+- `@levdomasnih/agent-relay-cli`
+- `@levdomasnih/agent-relay-mcp-server`
 
 ## Before Publishing
 
@@ -22,9 +22,9 @@ This project is a pnpm workspace with three publishable packages:
 Publish core first, then CLI and MCP server:
 
 ```bash
-pnpm --filter @agent-relay/core publish --access public
-pnpm --filter @agent-relay/cli publish --access public
-pnpm --filter @agent-relay/mcp-server publish --access public
+pnpm --filter @levdomasnih/agent-relay-core publish --access public
+pnpm --filter @levdomasnih/agent-relay-cli publish --access public
+pnpm --filter @levdomasnih/agent-relay-mcp-server publish --access public
 ```
 
 ## Post-Publish Smoke
@@ -33,10 +33,10 @@ pnpm --filter @agent-relay/mcp-server publish --access public
 tmp="$(mktemp -d)"
 cd "$tmp"
 git init
-npx @agent-relay/cli init
-npx @agent-relay/cli doctor
-npx @agent-relay/cli create --title "Smoke" --scope "src" --files "src/**"
-npx @agent-relay/cli status
+npx @levdomasnih/agent-relay-cli init
+npx @levdomasnih/agent-relay-cli doctor
+npx @levdomasnih/agent-relay-cli create --title "Smoke" --scope "src" --files "src/**"
+npx @levdomasnih/agent-relay-cli status
 ```
 
 ## Notes
